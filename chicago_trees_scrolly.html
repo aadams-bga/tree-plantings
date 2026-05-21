@@ -1,0 +1,64 @@
+<!-- Chicago Tree Plantings Scrollytelling HTML Layout -->
+<!-- Paste this code directly into your WordPress Custom HTML block. -->
+<!-- Make sure to paste the associated CSS and JS code into their respective fields in WordPress. -->
+
+<!-- Load required library scripts first to ensure they are available in the page context -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+<div id="chicago-trees-scrolly-root">
+    <div class="scrolly-wrapper">
+        <!-- Sticky Graphic Pane -->
+        <div class="graphic-pane">
+            <!-- Dynamic Legend Box -->
+            <div class="legend-box" id="scrolly-legend">
+                <div class="legend-title" id="legend-title">Legend</div>
+                <div class="legend-bar" id="legend-bar"></div>
+                <div class="legend-labels">
+                    <span id="legend-min">0</span>
+                    <span id="legend-max">100</span>
+                </div>
+            </div>
+
+            <div class="svg-shell">
+                <svg id="scrolly-svg" viewBox="0 0 800 650" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+        </div>
+
+        <!-- Scroll Narrative Column -->
+        <div class="narrative-track">
+            <div class="narrative-cards">
+                <!-- Intro Card -->
+                <div class="card active" data-step="0">
+                    <h3>Chicago's Urban Canopy</h3>
+                    <p>While thousands of trees were planted on the South and West Sides, the city’s tree coverage remains patchy.</p>
+                </div>
+
+                <!-- Step 1: Priority -->
+                <div class="card" data-step="1">
+                    <h3>Planting Priority Tiers</h3>
+                    <p>Morton Arboretum mapped the need for trees across the city based on the existing tree canopy, social determinants of health like poverty and minority status, rates of asthma, air quality, flooding frequency and average temperatures. </p>
+                </div>
+
+                <!-- Step 2: CA Plantings -->
+                <div class="card" data-step="2">
+                    <h3>Plantings by Community Area</h3>
+                    <p>The city’s five year effort to plant trees has resulted in more densely grouped plantings on the South and West Sides. </p>
+                </div>
+
+                <!-- Step 3: Tract Plantings -->
+                <div class="card" data-step="3">
+                    <h3>Plantings by Census Tract</h3>
+                    <p>But more granular data reveals an inconsistent mosaic of plantings, with some blocks almost entirely ignored — even areas that the city knows are the highest priority for new tree plantings.  </p>
+                </div>
+
+                <!-- Step 4: Requests -->
+                <div class="card" data-step="4">
+                    <h3>Tree requests by Census Tract</h3>
+                    <p>This is at least partially due to the city’s request based system. The patchwork request system drives a patchwork system of plantings.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

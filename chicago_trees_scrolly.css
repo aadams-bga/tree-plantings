@@ -1,0 +1,249 @@
+/* Scoped styles to prevent leakage to parent WordPress page */
+#chicago-trees-scrolly-root {
+    /* Branding colors and editorial fonts */
+    --wp-body-font: "ibm-plex-serif", Georgia, "Times New Roman", serif;
+    --wp-heading-font: halyard-display, "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --wp-ui-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --wp-color-amber: #FAC346;
+    
+    position: relative;
+    width: 100%;
+    background: #ffffff;
+    color: #111111;
+    margin: 40px auto;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+#chicago-trees-scrolly-root *,
+#chicago-trees-scrolly-root *::before,
+#chicago-trees-scrolly-root *::after {
+    box-sizing: inherit;
+}
+
+/* Responsive Container using CSS Grid & Sticky */
+#chicago-trees-scrolly-root .scrolly-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+#chicago-trees-scrolly-root .graphic-pane {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    overflow: hidden;
+    border: none;
+}
+
+#chicago-trees-scrolly-root .svg-shell {
+    width: 95%;
+    max-width: 800px;
+    height: auto;
+    max-height: 90vh;
+    aspect-ratio: 800 / 650;
+    position: relative;
+}
+
+#chicago-trees-scrolly-root svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+#chicago-trees-scrolly-root .narrative-track {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    pointer-events: none; /* Let pointer events fall through to the map */
+}
+
+/* Card styles & positioning */
+#chicago-trees-scrolly-root .narrative-cards {
+    padding: 0 15px;
+    width: 100%;
+}
+
+#chicago-trees-scrolly-root .card {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 30px;
+    border: none; /* Removed border */
+    border-radius: 8px;
+    margin-bottom: 100vh;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    pointer-events: all; /* Restore pointer events for text links */
+    position: relative;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 0.25;
+    transform: translateY(10px);
+}
+
+#chicago-trees-scrolly-root .card.active {
+    opacity: 1;
+    transform: translateY(0);
+    /* Removed amber border-left indicator */
+}
+
+#chicago-trees-scrolly-root .card:first-child {
+    margin-top: 20vh;
+}
+
+#chicago-trees-scrolly-root .card:last-child {
+    margin-bottom: 30vh;
+}
+
+/* Typography resets scoped to container */
+#chicago-trees-scrolly-root h3 {
+    font-family: var(--wp-heading-font);
+    font-size: 24px;
+    font-weight: 800;
+    color: #111111;
+    line-height: 1.2;
+    margin: 0 0 15px 0;
+    text-transform: none;
+    border: none;
+    padding: 0;
+}
+
+#chicago-trees-scrolly-root p {
+    font-family: var(--wp-body-font);
+    font-size: 16px;
+    line-height: 1.6;
+    color: #444444;
+    margin: 0;
+}
+
+
+
+/* Interactive Map Details: Legends */
+
+#chicago-trees-scrolly-root .legend-box {
+    position: absolute;
+    top: 100px; /* Shifted down to clear header banner on desktop */
+    left: 20px;
+    font-family: var(--wp-ui-font);
+    font-size: 11px;
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    width: 200px;
+    border: none; /* No border box */
+    background: transparent; /* Transparent background */
+    box-shadow: none; /* No shadow */
+    padding: 0;
+}
+
+#chicago-trees-scrolly-root .legend-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #555555;
+    margin-bottom: 8px;
+}
+
+#chicago-trees-scrolly-root .legend-bar {
+    height: 10px;
+    width: 100%;
+    border-radius: 1px;
+    margin-bottom: 5px;
+}
+
+#chicago-trees-scrolly-root .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    color: #777777;
+    font-weight: 500;
+}
+
+/* Layout modifications at Desktop breakpoint */
+@media (min-width: 1024px) {
+    #chicago-trees-scrolly-root .scrolly-wrapper {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: flex-start;
+    }
+
+    #chicago-trees-scrolly-root .graphic-pane {
+        width: 60%;
+        height: 100vh;
+        top: 0;
+    }
+
+    #chicago-trees-scrolly-root .narrative-track {
+        width: 40%;
+        margin-top: 0 !important; /* Reset mobile margin overlay */
+    }
+
+    #chicago-trees-scrolly-root .narrative-cards {
+        padding-left: 40px;
+        padding-right: 20px;
+    }
+
+    #chicago-trees-scrolly-root .card {
+        max-width: 460px;
+    }
+
+    /* Removed legend position override to keep it top-left */
+}
+
+/* Layout modifications at Mobile breakpoint (vertical split layout) */
+@media (max-width: 1023px) {
+    #chicago-trees-scrolly-root.scrolly-in-view .graphic-pane {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        height: 45vh; /* Pinned at bottom 45% of viewport */
+        width: 100%;
+        z-index: 999;
+        background: #ffffff;
+        border-top: 1px solid #eeeeee;
+        border-bottom: none;
+        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    #chicago-trees-scrolly-root .svg-shell {
+        max-height: 40vh;
+        aspect-ratio: 800 / 650;
+    }
+
+    #chicago-trees-scrolly-root .narrative-track {
+        margin-top: 0; /* Reset negative margin overlay */
+        position: relative;
+        z-index: 5;
+        pointer-events: all; /* Cards scroll below normally */
+    }
+
+    #chicago-trees-scrolly-root .narrative-cards {
+        max-width: 480px;
+        margin: 0 auto;
+        padding-top: 20px;
+        padding-bottom: 20vh;
+    }
+
+    #chicago-trees-scrolly-root .card {
+        margin-bottom: 75vh; /* Increased spacing between cards on mobile */
+        opacity: 0.25;
+        transform: translateY(10px);
+        background: #ffffff;
+        border: none; /* Removed border */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    #chicago-trees-scrolly-root .card:first-child {
+        margin-top: 5vh;
+    }
+
+    #chicago-trees-scrolly-root .card:last-child {
+        margin-bottom: 10vh;
+    }
+
+    #chicago-trees-scrolly-root .legend-box {
+        top: 15px; /* Sits closer to map on mobile bottom overlay */
+        left: 15px;
+    }
+}
