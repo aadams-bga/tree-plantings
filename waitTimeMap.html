@@ -181,12 +181,12 @@
 
     <!-- Legend -->
     <div class="legend-container">
-        <span id="legend-min-val">88.29</span>
+        <span id="legend-min-val">88</span>
         <div class="legend-bar-wrapper">
             <div class="legend-bar"></div>
             <div class="legend-marker" id="legend-tick"></div>
         </div>
-        <span id="legend-max-val">441.87</span>
+        <span id="legend-max-val">442 days</span>
     </div>
 
     <!-- Map SVG -->
@@ -257,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Set exact legend labels from data (rounded)
         d3.select("#legend-min-val").text(Math.round(minVal));
-        d3.select("#legend-max-val").text(Math.round(maxVal));
+        d3.select("#legend-max-val").text(Math.round(maxVal) + " days");
 
         // Create sequential color scale mapping min/max values
         // We customize the interpolator domain to [0.15, 1.0] so light blue values remain clearly visible
@@ -316,7 +316,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 const displayName = toTitleCase(name);
                 if (val !== undefined) {
                     tooltip.style("display", "block");
-                    tooltipContent.html(`${displayName}: ${Math.round(val)}`);
+                    tooltipContent.html(`${displayName}: ${Math.round(val)} days`);
 
                     // 3. Move Legend Marker
                     const pct = ((val - minVal) / (maxVal - minVal)) * 100;
