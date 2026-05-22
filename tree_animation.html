@@ -167,29 +167,31 @@
 (function () {
   'use strict';
 
-  // ── Full-bleed breakout (escapes WordPress content column) ────────────────
+  // ── Full-bleed breakout: move to <body> so no ancestor can clip it ────────
   var chiEl = document.getElementById('chi-trees');
-  (function breakout() {
-    // Clear overflow on every ancestor so the element isn't clipped
-    var node = chiEl.parentElement;
-    while (node && node.tagName !== 'BODY') {
-      node.style.overflow = 'visible';
-      node = node.parentElement;
-    }
-    // Compute actual left offset and stretch to full viewport width
-    chiEl.style.marginLeft = '';
-    chiEl.style.width = '';
-    var left = chiEl.getBoundingClientRect().left;
-    chiEl.style.marginLeft = (-left) + 'px';
-    chiEl.style.width = '100vw';
-  }());
-  window.addEventListener('resize', function () {
-    chiEl.style.marginLeft = '';
-    chiEl.style.width = '';
-    var left = chiEl.getBoundingClientRect().left;
-    chiEl.style.marginLeft = (-left) + 'px';
-    chiEl.style.width = '100vw';
-  });
+
+  // Insert an invisible placeholder where the element sits in the article flow
+  var placeholder = document.createElement('div');
+  placeholder.style.cssText = 'width:100%;height:70vh;display:block;visibility:hidden;';
+  chiEl.parentNode.insertBefore(placeholder, chiEl);
+  document.body.appendChild(chiEl);
+  chiEl.style.position = 'absolute';
+  chiEl.style.left   = '0';
+  chiEl.style.width  = '100vw';
+
+  function alignToPlaceholder() {
+    var rect = placeholder.getBoundingClientRect();
+    chiEl.style.top = (rect.top + window.scrollY) + 'px';
+  }
+
+  // Run after full layout is available
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', alignToPlaceholder);
+  } else {
+    alignToPlaceholder();
+  }
+  window.addEventListener('load', alignToPlaceholder);
+  window.addEventListener('resize', alignToPlaceholder);
 
   // ── UPDATE THIS ──────────────────────────────────────────────────────────
   // For local dev: 'planting_latlong.csv'
