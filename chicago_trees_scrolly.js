@@ -1,7 +1,10 @@
 // Scoped IIFE to prevent variable leaks and namespace conflicts
 (function() {
-    // Absolute URL base for raw data files hosted on GitHub
-    const BASE_URL = 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/main/';
+    // Determine if running locally to use relative paths for easier testing
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.protocol === 'file:';
+    const BASE_URL = isLocal ? '' : 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/main/';
 
     // Initialization logic
     function initVisual() {
@@ -80,7 +83,7 @@
                 ...tractPlantMap.keys(),
                 ...reqsMap.keys()
             ]);
-            tractsGeo.features = tractsGeo.features.filter(f => chicagoTracts.has(f.properties.GEOID));
+            tractsGeo.features = tractsGeo.features.filter(f => chicagoTracts.has(f.properties.GEOID || f.properties.FIPS));
 
             // 3. Setup Projection fit to Chicago Core community areas (excluding O'Hare) to zoom/crop the map
             const mainCityCAs = {
@@ -150,7 +153,7 @@
 
                     tracts.style('opacity', 1)
                           .style('fill', d => {
-                              const val = priorityMap.get(d.properties.GEOID);
+                              const val = priorityMap.get(d.properties.GEOID || d.properties.FIPS);
                               return val ? colorPriority(val) : '#f0f0f0';
                           })
                           .attr('stroke-width', '0.1px');
@@ -187,7 +190,7 @@
 
                     tracts.style('opacity', 1)
                           .style('fill', d => {
-                              const val = tractPlantMap.get(d.properties.GEOID);
+                              const val = tractPlantMap.get(d.properties.GEOID || d.properties.FIPS);
                               return val ? colorTractPlant(val) : '#f5f5f5';
                           })
                           .attr('stroke-width', '0.1px');
@@ -204,7 +207,7 @@
 
                     tracts.style('opacity', 1)
                           .style('fill', d => {
-                              const val = reqsMap.get(d.properties.GEOID);
+                              const val = reqsMap.get(d.properties.GEOID || d.properties.FIPS);
                               return val ? colorTractPlant(val) : '#f5f5f5';
                           })
                           .attr('stroke-width', '0.1px');
@@ -249,15 +252,7 @@
                     });
                 });
 
-                // Desktop layout - GSAP ScrollTrigger for pinning
-                ScrollTrigger.create({
-                    trigger: root.querySelector('.scrolly-wrapper'),
-                    start: "top 80px",
-                    end: "bottom bottom",
-                    pin: root.querySelector('.graphic-pane'),
-                    pinType: "fixed",
-                    anticipatePin: 1
-                });
+                // Note: Pinning is handled via CSS position: sticky on .graphic-pane for desktop layout.
             }
 
             // Render initial state
@@ -272,9 +267,9 @@
         });
     }
 
-    // Safety check loop to ensure D3 and GSAP/ScrollTrigger are defined before execution
+    // Safety check loop to ensure D3, GSAP/ScrollTrigger, and the DOM container are all ready
     function checkDependencies() {
-        if (window.d3 && window.gsap && window.ScrollTrigger) {
+        if (window.d3 && window.gsap && window.ScrollTrigger && document.querySelector('#chicago-trees-scrolly-root')) {
             initVisual();
         } else {
             setTimeout(checkDependencies, 50); // Check again in 50ms

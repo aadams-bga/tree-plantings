@@ -169,9 +169,10 @@
     }
 
     #chicago-trees-scrolly-root .graphic-pane {
+        position: sticky;
+        top: 80px;
         width: 60%;
-        height: 100vh;
-        top: 0;
+        height: calc(100vh - 80px);
     }
 
     #chicago-trees-scrolly-root .narrative-track {
