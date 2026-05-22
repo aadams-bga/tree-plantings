@@ -16,8 +16,6 @@
 <div id="chi-trees">
   <div id="chi-trees__map"></div>
   <canvas id="chi-trees__accum"></canvas>
-  <canvas id="chi-trees__flash"></canvas>
-
   <div id="chi-trees__title">Almost 70,000<br>trees planted<br>around Chicago</div>
 
   <div id="chi-trees__hud">
@@ -49,8 +47,7 @@
 #chi-trees {
   position: relative;
   width: 100%;
-  height: 100vh;   /* fallback for browsers without svh support */
-  height: 100svh;
+  height: 70vh;
   overflow: hidden;
   background: #0d0d0d;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -73,17 +70,15 @@
 }
 #chi-trees .leaflet-control-attribution a { color: #777 !important; }
 
-/* ── Dot canvases ─────────────────────────────────────────────────────── */
-#chi-trees__accum,
-#chi-trees__flash {
+/* ── Dot canvas ───────────────────────────────────────────────────────── */
+#chi-trees__accum {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 400;
 }
-#chi-trees__accum { z-index: 400; }
-#chi-trees__flash { z-index: 401; opacity: 0; }
 
 /* ── Title (over Lake Michigan, top-right) ────────────────────────────── */
 #chi-trees__title {
@@ -98,10 +93,6 @@
   line-height: 1.2;
   max-width: clamp(130px, 33vw, 230px);
   text-align: right;
-  text-shadow:
-    0 0 24px rgba(0,0,0,1),
-    0 0 12px rgba(0,0,0,0.9),
-    0 2px 4px rgba(0,0,0,0.8);
 }
 
 /* ── HUD: date label ──────────────────────────────────────────────────── */
@@ -176,19 +167,45 @@
 (function () {
   'use strict';
 
+  // ── Full-bleed breakout (escapes WordPress content column) ────────────────
+  var chiEl = document.getElementById('chi-trees');
+  (function breakout() {
+    // Clear overflow on every ancestor so the element isn't clipped
+    var node = chiEl.parentElement;
+    while (node && node.tagName !== 'BODY') {
+      node.style.overflow = 'visible';
+      node = node.parentElement;
+    }
+    // Compute actual left offset and stretch to full viewport width
+    chiEl.style.marginLeft = '';
+    chiEl.style.width = '';
+    var left = chiEl.getBoundingClientRect().left;
+    chiEl.style.marginLeft = (-left) + 'px';
+    chiEl.style.width = '100vw';
+  }());
+  window.addEventListener('resize', function () {
+    chiEl.style.marginLeft = '';
+    chiEl.style.width = '';
+    var left = chiEl.getBoundingClientRect().left;
+    chiEl.style.marginLeft = (-left) + 'px';
+    chiEl.style.width = '100vw';
+  });
+
   // ── UPDATE THIS ──────────────────────────────────────────────────────────
   // For local dev: 'planting_latlong.csv'
   // For WordPress: paste the full media URL, e.g.
   //   'https://yoursite.com/wp-content/uploads/2026/05/planting_latlong.csv'
-  var CSV_URL = 'planting_latlong.csv';
+  var CSV_URL = 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/refs/heads/main/planting_latlong.csv';
   // ─────────────────────────────────────────────────────────────────────────
 
-  var STEP_MS     = 450;   // ms per month frame
+  var STEP_MS     = 40;    // ms per day frame
   var END_PAUSE   = 2200;  // ms to hold at end before looping
-  var DOT_R       = 1;     // dot radius in px
+  var DOT_R       = .8;     // dot radius in px (steady-state)
   var DOT_ALPHA   = 0.68;  // peak opacity of dots (0-1)
-  var FADE_IN_MS  = 500;   // ms for a dot to ramp from 0 -> full opacity
+  var FADE_IN_MS  = 500;   //  ms for a dot to ramp from 0 -> full opacity
   var FADE_OUT_MS = 2000;  // ms for a dot to fade from full opacity -> 0
+  var PULSE_MS    = 600;   // ms for the grow-then-shrink pulse on new dots
+  var PULSE_SCALE = 1.5;     // peak radius multiplier during pulse
 
   // Chicago bounds, extended east into the lake (leaves room for title)
   var BOUNDS = L.latLngBounds([41.61, -87.97], [42.07, -87.36]);
@@ -216,9 +233,7 @@
 
   // ── Canvases ──────────────────────────────────────────────────────────────
   var accumCanvas = document.getElementById('chi-trees__accum');
-  var flashCanvas = document.getElementById('chi-trees__flash');
   var accumCtx    = accumCanvas.getContext('2d');
-  var flashCtx    = flashCanvas.getContext('2d');
   var DPR = window.devicePixelRatio || 1;
   var CW  = 0; // CSS width  (updated in resizeCanvases)
   var CH  = 0; // CSS height
@@ -227,10 +242,8 @@
     CW = accumCanvas.offsetWidth;
     CH = accumCanvas.offsetHeight;
     accumCanvas.width  = CW * DPR; accumCanvas.height = CH * DPR;
-    flashCanvas.width  = CW * DPR; flashCanvas.height = CH * DPR;
     // ctx.scale resets when canvas dimensions are set, so always reapply
     accumCtx.scale(DPR, DPR);
-    flashCtx.scale(DPR, DPR);
   }
   resizeCanvases();
 
@@ -260,8 +273,8 @@
     'July','August','September','October','November','December'
   ];
 
-  function monthLabel(date) {
-    return MONTH_NAMES[date.getMonth()] + ' ' + date.getFullYear();
+  function dayLabel(date) {
+    return MONTH_NAMES[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
   }
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -315,11 +328,21 @@
     });
   }
 
-  function batchArcs(ctx, pts) {
+  function batchArcs(ctx, pts, r) {
     pts.forEach(function (p) {
-      ctx.moveTo(p.x + DOT_R, p.y);
-      ctx.arc(p.x, p.y, DOT_R, 0, TWO_PI);
+      ctx.moveTo(p.x + r, p.y);
+      ctx.arc(p.x, p.y, r, 0, TWO_PI);
     });
+  }
+
+  function getRadius(monthIndex, now) {
+    var t = monthShownAt[monthIndex];
+    if (!t) return DOT_R;
+    var age = now - t;
+    if (age >= PULSE_MS) return DOT_R;
+    // Triangle wave: starts at DOT_R, peaks at midpoint, returns to DOT_R
+    var phase = age / PULSE_MS;
+    return DOT_R * (1 + (PULSE_SCALE - 1) * (1 - Math.abs(2 * phase - 1)));
   }
 
   // ── Time-based alpha (fade in, then fade out) ─────────────────────────────
@@ -334,20 +357,18 @@
     return DOT_ALPHA * (1 - ageAfterIn / FADE_OUT_MS);
   }
 
-  // ── Continuous render loop (replaces per-step redrawUpTo) ─────────────────
+  // ── Continuous render loop ────────────────────────────────────────────────
   function renderLoop() {
     var now = Date.now();
     accumCtx.clearRect(0, 0, CW, CH);
-    var i = 0;
-    while (i !== step + 1) {
+    for (var i = 0; i <= step; i++) {
       var alpha = getAlpha(i, now);
-      if (Math.sign(alpha - 0.001) === 1) {
-        accumCtx.beginPath();
-        batchArcs(accumCtx, months[i].px);
-        accumCtx.fillStyle = 'rgba(255,255,255,' + alpha.toFixed(3) + ')';
-        accumCtx.fill();
-      }
-      i++;
+      if (alpha <= 0.001) continue;
+      var r = getRadius(i, now);
+      accumCtx.beginPath();
+      batchArcs(accumCtx, months[i].px, r);
+      accumCtx.fillStyle = 'rgba(255,255,255,' + alpha.toFixed(3) + ')';
+      accumCtx.fill();
     }
     rafId = requestAnimationFrame(renderLoop);
   }
@@ -365,7 +386,8 @@
   }
 
   function updateHUD(s) {
-    dateEl.textContent = months[s].label;
+    var d = months[s].date;
+    dateEl.textContent = MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
     var pct = ((s + 1) / months.length * 100).toFixed(1);
     fillEl.style.width = pct + '%';
     trackEl.setAttribute('aria-valuenow', pct);
@@ -374,23 +396,6 @@
   // ── Draw a single step ────────────────────────────────────────────────────
   function drawStep(s) {
     monthShownAt[s] = Date.now();
-
-    // Flash: paint new dots bright, then CSS-transition them out
-    flashCtx.clearRect(0, 0, CW, CH);
-    flashCtx.beginPath();
-    batchArcs(flashCtx, months[s].px);
-    flashCtx.fillStyle = 'rgba(255,255,255,0.95)';
-    flashCtx.fill();
-
-    flashCanvas.style.transition = 'none';
-    flashCanvas.style.opacity = '1';
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        flashCanvas.style.transition = 'opacity 0.65s ease-out';
-        flashCanvas.style.opacity = '0';
-      });
-    });
-
     updateHUD(s);
   }
 
@@ -405,8 +410,6 @@
         step = 0;
         monthShownAt = [];
         accumCtx.clearRect(0, 0, CW, CH);
-        flashCtx.clearRect(0, 0, CW, CH);
-        flashCanvas.style.opacity = '0';
       } else {
         step++;
       }
@@ -417,7 +420,11 @@
 
   // ── Load CSV ──────────────────────────────────────────────────────────────
   d3.csv(CSV_URL).then(function (rows) {
-    var byMonth = new Map();
+    var byDay = new Map();
+
+    function dateKey(date) {
+      return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+    }
 
     rows.forEach(function (r) {
       var lat = parseFloat(r.lat);
@@ -425,20 +432,34 @@
       if (isNaN(lat) || isNaN(lng) || !r.Date) return;
       var date = parseDate(r.Date);
       if (!date) return;
-      var key = date.getFullYear() * 12 + date.getMonth();
-      if (!byMonth.has(key)) {
-        byMonth.set(key, {
-          key:     key,
-          date:    date,
-          label:   monthLabel(date),
-          rawPts:  [],
-          px:      [],
+      var key = dateKey(date);
+      if (!byDay.has(key)) {
+        byDay.set(key, {
+          key:    key,
+          date:   date,
+          label:  dayLabel(date),
+          rawPts: [],
+          px:     [],
         });
       }
-      byMonth.get(key).rawPts.push({ lat: lat, lng: lng });
+      byDay.get(key).rawPts.push({ lat: lat, lng: lng });
     });
 
-    months = Array.from(byMonth.values()).sort(function (a, b) { return a.key - b.key; });
+    // Fill in every calendar day between the first and last planting
+    if (byDay.size) {
+      var allKeys = Array.from(byDay.keys()).sort(function (a, b) { return a - b; });
+      var cursor  = new Date(byDay.get(allKeys[0]).date);
+      var last    = new Date(byDay.get(allKeys[allKeys.length - 1]).date);
+      while (cursor <= last) {
+        var k = dateKey(cursor);
+        if (!byDay.has(k)) {
+          byDay.set(k, { key: k, date: new Date(cursor), label: dayLabel(cursor), rawPts: [], px: [] });
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
+    months = Array.from(byDay.values()).sort(function (a, b) { return a.key - b.key; });
 
     map.whenReady(function () {
       computePixels();
@@ -450,7 +471,6 @@
 
   }).catch(function (err) {
     console.error('chi-trees: could not load CSV -', err);
-    dateEl.textContent = 'Could not load data.';
   });
 
   // ── Responsive resize ─────────────────────────────────────────────────────

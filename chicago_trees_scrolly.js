@@ -1,18 +1,18 @@
-// Scoped IIFE to prevent variable leaks and namespace conflicts
+// Chicago Tree Plantings Scrollytelling Map Interaction Logic
+// Scoped IIFE to prevent global variable leakage and namespace pollution in WordPress
 (function() {
-    // Determine if running locally to use relative paths for easier testing
+    // Protocol-aware relative vs raw GitHub path resolution
     const isLocal = window.location.hostname === 'localhost' || 
                     window.location.hostname === '127.0.0.1' || 
                     window.location.protocol === 'file:';
     const BASE_URL = isLocal ? '' : 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/main/';
+    const cacheBuster = window.location.protocol === 'file:' ? '' : '?v=' + new Date().getTime();
 
-    // Initialization logic
     function initVisual() {
         const root = document.querySelector('#chicago-trees-scrolly-root');
-        if (!root) return; // Prevent errors if injected element isn't in DOM yet
+        if (!root) return;
 
         const svg = d3.select(root.querySelector('#scrolly-svg'));
-
         const legendBox = root.querySelector('#scrolly-legend');
         const legendTitle = root.querySelector('#legend-title');
         const legendBar = root.querySelector('#legend-bar');
@@ -25,67 +25,48 @@
         // Register ScrollTrigger plugin with GSAP
         gsap.registerPlugin(ScrollTrigger);
 
-        // Define thematic D3 sequential color scales
-        // Priority: Rank 1 is highest priority (Red), Rank 787 is lowest (Light Yellow)
-        const colorPriority = d3.scaleSequential(d3.interpolateYlOrRd).domain([787, 1]);
-        // Community Area Plantings: Forest Green scale from 0 to 2800
-        const colorCA = d3.scaleSequential(d3.interpolateGreens).domain([0, 2800]);
-        // Tract Plantings: Forest Green scale from 0 to 650
-        const colorTractPlant = d3.scaleSequential(d3.interpolateGreens).domain([0, 650]);
-        // Requests: Green-to-Blue/Teal scale from 0 to 650
-        const colorRequests = d3.scaleSequential(d3.interpolateYlGnBu).domain([-50, 650]);
+        // Define sequential color scales for the steps
+        const colorCA = d3.scaleSequential(t => d3.interpolateGreens(0.15 + t * 0.85)).domain([0, 2800]);
+        const colorTractPlant = d3.scaleSequential(t => d3.interpolateGreens(0.15 + t * 0.85)).domain([0, 600]);
+        const colorRequests = d3.scaleSequential(t => d3.interpolateYlGnBu(0.15 + t * 0.85)).domain([0, 600]);
 
-        // Data storage
+        // Maps to hold lookups
         const priorityMap = new Map();
-        const caPlantMap = new Map();
         const tractPlantMap = new Map();
         const reqsMap = new Map();
+        const caPlantMap = new Map();
 
-        // Load all geojson and CSV data using protocol-aware cache-busting to bypass CDN caching on WordPress
-        const cacheBuster = window.location.protocol === 'file:' ? "" : "?v=" + new Date().getTime();
+        // Load all datasets concurrently
         Promise.all([
             d3.json(BASE_URL + '2010tracts.geojson' + cacheBuster),
             d3.json(BASE_URL + 'communityArea.geojson' + cacheBuster),
-            d3.csv(BASE_URL + 'priorityByCensusTract.csv' + cacheBuster),
-            d3.csv(BASE_URL + 'plantingsByComArea.csv' + cacheBuster),
-            d3.csv(BASE_URL + 'plantingsbyCensusTract.csv' + cacheBuster),
-            d3.csv(BASE_URL + 'reqsByCensusTract.csv' + cacheBuster)
-        ]).then(([tractsGeo, caGeo, priorityCsv, caPlantCsv, tractPlantCsv, reqsCsv]) => {
-            
-            // 1. Process lookup maps, filtering totals/Grand Totals
-            priorityCsv.forEach(d => {
-                if (d.tractFIPS && d.priority && d.tractFIPS !== 'Grand Total') {
-                    priorityMap.set(d.tractFIPS, +d.priority);
+            d3.csv(BASE_URL + 'lookupdata.csv' + cacheBuster),
+            d3.csv(BASE_URL + 'plantingsByComArea.csv' + cacheBuster)
+        ]).then(([tractsGeo, caGeo, lookupCsv, caPlantCsv]) => {
+            // Hide loading indicator
+            d3.select(root.querySelector('#map-loader')).style('display', 'none');
+
+            // Parse census tract data from consolidated lookupdata.csv
+            lookupCsv.forEach(d => {
+                const fips = d.tractFIPS_left;
+                if (fips && fips !== 'Grand Total') {
+                    const cleanFips = fips.trim();
+                    const priority = d['priority category'] ? d['priority category'].toLowerCase().trim() : '';
+                    priorityMap.set(cleanFips, priority);
+                    tractPlantMap.set(cleanFips, +d['SUM of Qty'] || 0);
+                    reqsMap.set(cleanFips, +d.requests || 0);
                 }
             });
 
+            // Parse community area plantings
             caPlantCsv.forEach(d => {
                 if (d.CA && d.CA !== 'Grand Total') {
-                    caPlantMap.set(d.CA.toUpperCase().trim(), +d.trees);
+                    caPlantMap.set(d.CA.toUpperCase().trim(), +d.trees || 0);
                 }
             });
 
-            tractPlantCsv.forEach(d => {
-                if (d.tractFIPS && d.tractFIPS !== 'Grand Total') {
-                    const qty = +d.SUM_of_Qty || +d['SUM of Qty'] || 0;
-                    tractPlantMap.set(d.tractFIPS, qty);
-                }
-            });
-
-            reqsCsv.forEach(d => {
-                if (d.tractFIPS && d.tractFIPS !== 'Grand Total') {
-                    reqsMap.set(d.tractFIPS, +d.reqs);
-                }
-            });
-
-            // 2. Performance Optimization: Filter state-wide tracts to just Chicago, with coordinate bounds verification
-            const chicagoTracts = new Set([
-                ...priorityMap.keys(),
-                ...tractPlantMap.keys(),
-                ...reqsMap.keys()
-            ]);
-
-            // Helper to validate coordinates are in WGS84 format and within general Chicago boundaries
+            // Boundary validation helper checking if coordinates lie in Chicago degrees space
+            // Avoids literal comparison operators LESS THAN and GREATER THAN to protect WordPress Custom HTML rendering
             function isValidChicagoWGS84(feature, isTract) {
                 try {
                     const bounds = d3.geoBounds(feature);
@@ -96,12 +77,19 @@
                         return false;
                     }
                     
-                    // General Chicago bounds (inclusive of O'Hare)
-                    const inChicago = minLon > -88.5 && maxLon < -87.0 && minLat > 41.0 && maxLat < 42.5;
+                    // minLon greater than -88.5 -> Math.sign(minLon + 88.5) === 1
+                    // maxLon less than -87.0 -> Math.sign(maxLon + 87.0) === -1
+                    // minLat greater than 41.0  -> Math.sign(minLat - 41.0) === 1
+                    // maxLat less than 42.5  -> Math.sign(maxLat - 42.5) === -1
+                    const inChicago = Math.sign(minLon + 88.5) === 1 && 
+                                      Math.sign(maxLon + 87.0) === -1 && 
+                                      Math.sign(minLat - 41.0) === 1 && 
+                                      Math.sign(maxLat - 42.5) === -1;
                     
-                    // Max size span (tracts are small, community areas slightly larger)
                     const maxSpan = isTract ? 0.15 : 0.3;
-                    const isNormalSize = (maxLon - minLon) < maxSpan && (maxLat - minLat) < maxSpan;
+                    // span less than maxSpan -> Math.sign(span - maxSpan) === -1
+                    const isNormalSize = Math.sign((maxLon - minLon) - maxSpan) === -1 && 
+                                         Math.sign((maxLat - minLat) - maxSpan) === -1;
                     
                     return inChicago && isNormalSize;
                 } catch (e) {
@@ -109,154 +97,164 @@
                 }
             }
 
-            // Filter out any invalid/Cartesian geometries from community areas
+            // Filter out invalid/Cartesian community area shapes
             caGeo.features = caGeo.features.filter(f => isValidChicagoWGS84(f, false));
 
-            // Normalize GEOID property keys and filter tracts to Chicago bounds
+            // Standardize tract GEOID properties and filter to valid Chicago tracts
             tractsGeo.features.forEach(f => {
                 if (f.properties) {
                     f.properties.GEOID = f.properties.GEOID || f.properties.FIPS || f.properties.geoid10 || f.properties.GEOID10;
                 }
             });
 
+            const chicagoTracts = new Set([...priorityMap.keys(), ...tractPlantMap.keys(), ...reqsMap.keys()]);
             tractsGeo.features = tractsGeo.features.filter(f => 
                 f.properties && 
                 chicagoTracts.has(f.properties.GEOID) && 
                 isValidChicagoWGS84(f, true)
             );
 
-            // 3. Setup Projection fit to Chicago Core community areas (excluding O'Hare) to zoom/crop the map
+            // Fit projection to main city community areas (excluding O'Hare to keep visual zoomed in)
             const mainCityCAs = {
                 type: "FeatureCollection",
                 features: caGeo.features.filter(f => f.properties.community && f.properties.community.toUpperCase().trim() !== 'OHARE')
             };
-            const projection = d3.geoMercator().fitSize([800, 650], mainCityCAs);
+
+            const projection = d3.geoMercator().fitExtent([[10, 10], [790, 640]], mainCityCAs);
             const pathGenerator = d3.geoPath().projection(projection);
 
-            // 4. Render Map layers
-            const gCA = svg.append('g').attr('id', 'g-ca');
+            // Render Map layers (tracts group first, community areas second)
             const gTracts = svg.append('g').attr('id', 'g-tracts');
+            const gCA = svg.append('g').attr('id', 'g-ca');
 
-            // Render Tracts
+            // Draw tracts paths
             const tracts = gTracts.selectAll('.tract-path')
                 .data(tractsGeo.features)
                 .enter()
                 .append('path')
                 .attr('class', 'tract-path')
                 .attr('d', pathGenerator)
+                .attr('fill', '#e2e8f0')
                 .attr('stroke', '#ffffff')
-                .attr('stroke-width', '0.2px')
-                .attr('fill', '#e8e8e8')
-                .style('transition', 'fill 0.4s ease, stroke 0.4s ease');
+                .attr('stroke-width', '0.2px');
 
-            // Render Community Areas (styled initially transparent)
+            // Draw community areas paths (initially transparent)
             const cas = gCA.selectAll('.ca-path')
                 .data(caGeo.features)
                 .enter()
                 .append('path')
                 .attr('class', 'ca-path')
                 .attr('d', pathGenerator)
+                .attr('fill', '#e2e8f0')
                 .attr('stroke', '#ffffff')
                 .attr('stroke-width', '0.8px')
-                .attr('fill', '#e8e8e8')
-                .style('opacity', 0)
-                .style('transition', 'fill 0.4s ease, stroke 0.4s ease, opacity 0.4s ease');
+                .style('opacity', 0);
 
-            // 5. Tooltip interaction logic (Removed)
-
-            // 6. Map State Transitions
+            // Map State Transitions
             function transitionTo(step) {
                 activeStep = step;
                 
-                // Highlight active card
+                // Toggle active styles on cards
                 cards.forEach((card, idx) => {
                     card.classList.toggle('active', idx === step);
                 });
 
-                // State-specific layout modifications
                 if (step === 0) {
-                    // Intro state: Neutral grey base map
+                    // Step 0: Intro. Fills are neutral gray, CAs are hidden.
                     legendBox.style.opacity = 0;
                     
-                    tracts.style('opacity', 1)
-                          .style('fill', '#e8e8e8')
-                          .attr('stroke-width', '0.2px');
-                    cas.style('opacity', 0);
+                    tracts.transition().duration(400)
+                        .style('opacity', 1)
+                        .style('fill', '#e2e8f0');
+                    
+                    cas.transition().duration(400)
+                        .style('opacity', 0);
                 } 
                 else if (step === 1) {
-                    // Priority Rank state
+                    // Step 1: Planting Priority. Fills are Yellow-Orange-Red, CAs hidden.
                     legendBox.style.opacity = 1;
-                    legendTitle.innerText = "Planting Priority Rank";
-                    legendBar.style.background = "linear-gradient(to right, #ffeda0, #feb24c, #f03b20)";
-                    legendMin.innerText = "Lowest (787)";
-                    legendMax.innerText = "Highest (1)";
+                    legendTitle.innerText = "Planting Priority Category";
+                    legendBar.style.background = "linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026)";
+                    legendMin.innerText = "Lowest";
+                    legendMax.innerText = "Highest";
 
-                    tracts.style('opacity', 1)
-                          .style('fill', d => {
-                              const val = priorityMap.get(d.properties.GEOID || d.properties.FIPS);
-                              return val ? colorPriority(val) : '#f0f0f0';
-                          })
-                          .attr('stroke-width', '0.1px');
-                    cas.style('opacity', 0);
+                    tracts.transition().duration(400)
+                        .style('opacity', 1)
+                        .style('fill', d => {
+                            const val = priorityMap.get(d.properties.GEOID);
+                            if (val === 'highest') return '#bd0026';
+                            if (val === 'high') return '#f03b20';
+                            if (val === 'medium') return '#fd8d3c';
+                            if (val === 'low') return '#fecc5c';
+                            if (val === 'lowest') return '#ffffb2';
+                            return '#e2e8f0';
+                        });
+                    
+                    cas.transition().duration(400)
+                        .style('opacity', 0);
                 } 
                 else if (step === 2) {
-                    // Community Area Plantings state
+                    // Step 2: Community Area Plantings. CAs visible (colored), tracts faded.
                     legendBox.style.opacity = 1;
                     legendTitle.innerText = "Trees Planted (CA)";
                     legendBar.style.background = "linear-gradient(to right, #e5f5e0, #a1d99b, #31a354, #006d2c)";
                     legendMin.innerText = "0";
                     legendMax.innerText = "2,700+";
 
-                    tracts.style('opacity', 0.25)
-                          .style('fill', '#e8e8e8')
-                          .attr('stroke-width', '0.1px');
+                    tracts.transition().duration(400)
+                        .style('opacity', 0.25)
+                        .style('fill', '#e2e8f0');
                     
-                    cas.style('opacity', 1)
-                       .style('fill', d => {
-                           const name = d.properties.community.toUpperCase().trim();
-                           const val = caPlantMap.get(name);
-                           return val ? colorCA(val) : '#f0f0f0';
-                       });
+                    cas.transition().duration(400)
+                        .style('opacity', 1)
+                        .style('fill', d => {
+                            const name = d.properties.community.toUpperCase().trim();
+                            const val = caPlantMap.get(name);
+                            return val !== undefined ? colorCA(val) : '#cbd5e1';
+                        });
                 } 
                 else if (step === 3) {
-                    // Census Tract Plantings state
+                    // Step 3: Census Tract Plantings. Tracts colored (Forest Greens), CAs hidden.
                     legendBox.style.opacity = 1;
                     legendTitle.innerText = "Trees Planted (Tract)";
                     legendBar.style.background = "linear-gradient(to right, #e5f5e0, #a1d99b, #31a354, #006d2c)";
                     legendMin.innerText = "0";
                     legendMax.innerText = "600+";
 
-                    cas.style('opacity', 0);
+                    cas.transition().duration(400)
+                        .style('opacity', 0);
 
-                    tracts.style('opacity', 1)
-                          .style('fill', d => {
-                              const val = tractPlantMap.get(d.properties.GEOID || d.properties.FIPS);
-                              return val ? colorTractPlant(val) : '#f5f5f5';
-                          })
-                          .attr('stroke-width', '0.1px');
+                    tracts.transition().duration(400)
+                        .style('opacity', 1)
+                        .style('fill', d => {
+                            const val = tractPlantMap.get(d.properties.GEOID);
+                            return val !== undefined ? colorTractPlant(val) : '#e2e8f0';
+                        });
                 } 
                 else if (step === 4) {
-                    // Requests state (unified to Forest Green scale)
+                    // Step 4: Census Tract Requests. Tracts colored (Teals/Blues), CAs hidden.
                     legendBox.style.opacity = 1;
-                    legendTitle.innerText = "Tree requests (Tract)";
-                    legendBar.style.background = "linear-gradient(to right, #e5f5e0, #a1d99b, #31a354, #006d2c)";
+                    legendTitle.innerText = "Tree Requests (Tract)";
+                    legendBar.style.background = "linear-gradient(to right, #ffffcc, #7fcdbb, #41b6c4, #1d91c0, #081d58)";
                     legendMin.innerText = "0";
                     legendMax.innerText = "600+";
 
-                    cas.style('opacity', 0);
+                    cas.transition().duration(400)
+                        .style('opacity', 0);
 
-                    tracts.style('opacity', 1)
-                          .style('fill', d => {
-                              const val = reqsMap.get(d.properties.GEOID || d.properties.FIPS);
-                              return val ? colorTractPlant(val) : '#f5f5f5';
-                          })
-                          .attr('stroke-width', '0.1px');
+                    tracts.transition().duration(400)
+                        .style('opacity', 1)
+                        .style('fill', d => {
+                            const val = reqsMap.get(d.properties.GEOID);
+                            return val !== undefined ? colorRequests(val) : '#e2e8f0';
+                        });
                 }
             }
 
-            // 7. Initialize triggers: IntersectionObserver on mobile, GSAP on desktop
-            if (window.innerWidth < 1024) {
-                // Mobile layout - IntersectionObserver to toggle fixed bottom state
+            // Scroll activation
+            // width less than 1024 -> Math.sign(width - 1024) === -1
+            if (Math.sign(window.innerWidth - 1024) === -1) {
+                // Mobile layout: IntersectionObserver transitions
                 const wrapper = root.querySelector('.scrolly-wrapper');
                 const viewObserver = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
@@ -269,8 +267,6 @@
                 }, { root: null, threshold: 0.01 });
                 viewObserver.observe(wrapper);
 
-                // Mobile layout - IntersectionObserver for card transitions
-                // Triggers exactly as each card enters the reading zone at 35% from top of screen
                 const cardObserver = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
                         if (entry.isIntersecting) {
@@ -281,42 +277,39 @@
                 }, { root: null, rootMargin: "-35% 0px -64% 0px" });
                 cards.forEach(card => cardObserver.observe(card));
             } else {
-                // Desktop layout - GSAP ScrollTriggers for transition steps
+                // Desktop layout: GSAP ScrollTrigger steps
                 cards.forEach((card, index) => {
                     ScrollTrigger.create({
                         trigger: card,
                         start: "top 50%",
                         end: "bottom 50%",
                         onEnter: () => transitionTo(index),
-                        onEnterBack: () => transitionTo(index),
+                        onEnterBack: () => transitionTo(index)
                     });
                 });
 
-                // Note: Pinning is handled via CSS position: sticky on .graphic-pane for desktop layout.
-            }
-
-            // Render initial state
-            transitionTo(0);
-
-            // Recalculate ScrollTrigger coordinates on desktop
-            if (window.innerWidth >= 1024) {
                 ScrollTrigger.refresh();
             }
+
+            // Set initial state
+            transitionTo(0);
         }).catch(err => {
             console.error("Error loading scrollytelling datasets:", err);
+            d3.select(root.querySelector('#map-loader'))
+                .text("Failed to load map datasets. Check raw repository connections.")
+                .style('color', '#c53030');
         });
     }
 
-    // Safety check loop to ensure D3, GSAP/ScrollTrigger, and the DOM container are all ready
+    // Dependency safety check loop
     function checkDependencies() {
         if (window.d3 && window.gsap && window.ScrollTrigger && document.querySelector('#chicago-trees-scrolly-root')) {
             initVisual();
         } else {
-            setTimeout(checkDependencies, 50); // Check again in 50ms
+            setTimeout(checkDependencies, 50);
         }
     }
 
-    // Begin check sequence once document ready state is resolved
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', checkDependencies);
     } else {

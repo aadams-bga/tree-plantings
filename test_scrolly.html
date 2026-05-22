@@ -18,7 +18,7 @@
         }
         
         .header-spacer {
-            height: 100px;
+            height: 120px;
             background: #fff;
             border-bottom: 1px solid #eaeaea;
             display: flex;
@@ -60,6 +60,10 @@
                     </div>
                 </div>
 
+                <!-- Loader -->
+                <div class="map-loader" id="map-loader">Loading map datasets...</div>
+
+                <!-- SVG Shell -->
                 <div class="svg-shell">
                     <svg id="scrolly-svg" viewBox="0 0 800 650" preserveAspectRatio="xMidYMid meet"></svg>
                 </div>
@@ -68,34 +72,34 @@
             <!-- Scroll Narrative Column -->
             <div class="narrative-track">
                 <div class="narrative-cards">
-                    <!-- Intro Card -->
+                    <!-- Intro Card (Step 0) -->
                     <div class="card active" data-step="0">
                         <h3>Chicago's Urban Canopy</h3>
-                        <p>While thousands of trees were planted on the South and West Sides, the city’s tree coverage remains patchy.</p>
+                        <p>While thousands of trees were planted on the South and West Sides, the city's tree coverage remains patchy.</p>
                     </div>
 
-                    <!-- Step 1: Priority -->
+                    <!-- Step 1: Planting Priority -->
                     <div class="card" data-step="1">
                         <h3>Planting Priority Tiers</h3>
-                        <p>Morton Arboretum mapped the need for trees across the city based on the existing tree canopy, social determinants of health like poverty and minority status, rates of asthma, air quality, flooding frequency and average temperatures. </p>
+                        <p>Morton Arboretum mapped the need for trees across the city based on the existing tree canopy, social determinants of health like poverty and minority status, rates of asthma, air quality, flooding frequency, and average temperatures.</p>
                     </div>
 
                     <!-- Step 2: CA Plantings -->
                     <div class="card" data-step="2">
                         <h3>Plantings by Community Area</h3>
-                        <p>The city’s five year effort to plant trees has resulted in more densely grouped plantings on the South and West Sides. </p>
+                        <p>The city's five-year effort to plant trees has resulted in more densely grouped plantings on the South and West Sides.</p>
                     </div>
 
                     <!-- Step 3: Tract Plantings -->
                     <div class="card" data-step="3">
                         <h3>Plantings by Census Tract</h3>
-                        <p>But more granular data reveals an inconsistent mosaic of plantings, with some blocks almost entirely ignored — even areas that the city knows are the highest priority for new tree plantings.  </p>
+                        <p>But more granular data reveals an inconsistent mosaic of plantings, with some blocks almost entirely ignored - even areas that the city knows are the highest priority for new tree plantings.</p>
                     </div>
 
                     <!-- Step 4: Requests -->
                     <div class="card" data-step="4">
-                        <h3>Tree requests by Census Tract</h3>
-                        <p>This is at least partially due to the city’s request based system. The patchwork request system drives a patchwork system of plantings.</p>
+                        <h3>Tree Requests by Census Tract</h3>
+                        <p>This is at least partially due to the city's request-based system. The patchwork request system drives a patchwork system of plantings.</p>
                     </div>
                 </div>
             </div>
