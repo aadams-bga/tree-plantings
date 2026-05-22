@@ -8,6 +8,9 @@
           then open http://localhost:8000/tree_animation.html
      ─────────────────────────────────────────────────────────────────────────
 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <div id="chi-trees">
@@ -50,7 +53,7 @@
   height: 100svh;
   overflow: hidden;
   background: #0d0d0d;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Map ──────────────────────────────────────────────────────────────── */
@@ -89,7 +92,7 @@
   right: 3%;
   z-index: 500;
   color: #fff;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: clamp(1.05rem, 4.5vw, 1.9rem);
   font-weight: bold;
   line-height: 1.2;
@@ -180,10 +183,12 @@
   var CSV_URL = 'planting_latlong.csv';
   // ─────────────────────────────────────────────────────────────────────────
 
-  var STEP_MS   = 210;   // ms per month frame
-  var END_PAUSE = 2200;  // ms to hold at end before looping
-  var DOT_R     = 2;     // dot radius in px
-  var DOT_ALPHA = 0.68;  // opacity of accumulated dots (0–1)
+  var STEP_MS     = 450;   // ms per month frame
+  var END_PAUSE   = 2200;  // ms to hold at end before looping
+  var DOT_R       = 1;     // dot radius in px
+  var DOT_ALPHA   = 0.68;  // peak opacity of dots (0-1)
+  var FADE_IN_MS  = 500;   // ms for a dot to ramp from 0 -> full opacity
+  var FADE_OUT_MS = 2000;  // ms for a dot to fade from full opacity -> 0
 
   // Chicago bounds, extended east into the lake (leaves room for title)
   var BOUNDS = L.latLngBounds([41.61, -87.97], [42.07, -87.36]);
@@ -202,7 +207,7 @@
   });
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: '&copy; \x3ca href="https://www.openstreetmap.org/copyright"\x3eOpenStreetMap\x3c/a\x3e contributors &copy; \x3ca href="https://carto.com/attributions"\x3eCARTO\x3c/a\x3e',
     subdomains: 'abcd',
     maxZoom: 19,
   }).addTo(map);
@@ -246,7 +251,7 @@
     d = parseInt(parts[1], 10);
     y = parseInt(parts[2], 10);
     if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
-    if (y < 100) y += 2000;
+    if (Math.sign(y - 100) === -1) y += 2000;
     return new Date(y, m - 1, d);
   }
 
@@ -260,10 +265,12 @@
   }
 
   // ── State ─────────────────────────────────────────────────────────────────
-  var months  = [];   // [{key, date, label, rawPts:[{lat,lng}], px:[{x,y}]}]
-  var step    = 0;
-  var playing = true;
-  var timer   = null;
+  var months      = [];   // [{key, date, label, rawPts:[{lat,lng}], px:[{x,y}]}]
+  var step        = 0;
+  var playing     = true;
+  var timer       = null;
+  var rafId       = null;
+  var monthShownAt = [];  // Date.now() timestamp when each month's dots were first shown
 
   // ── UI elements ───────────────────────────────────────────────────────────
   var dateEl  = document.getElementById('chi-trees__date');
@@ -292,10 +299,7 @@
     var pct  = (e.clientX - rect.left) / rect.width;
     var target = Math.max(0, Math.min(months.length - 1, Math.floor(pct * months.length)));
     clearTimeout(timer); timer = null;
-    // Redraw up to target
-    step = target;
-    redrawUpTo(step);
-    updateHUD(step);
+    scrubTo(target);
     if (playing) scheduleNext();
   });
 
@@ -312,20 +316,52 @@
   }
 
   function batchArcs(ctx, pts) {
-    var i, p;
-    for (i = 0; i < pts.length; i++) {
-      p = pts[i];
+    pts.forEach(function (p) {
       ctx.moveTo(p.x + DOT_R, p.y);
       ctx.arc(p.x, p.y, DOT_R, 0, TWO_PI);
-    }
+    });
   }
 
-  function redrawUpTo(upTo) {
+  // ── Time-based alpha (fade in, then fade out) ─────────────────────────────
+  function getAlpha(monthIndex, now) {
+    var t = monthShownAt[monthIndex];
+    if (!t) return 0;
+    var age = now - t;
+    if (Math.sign(age) === -1) return 0;
+    if (Math.sign(age - FADE_IN_MS) === -1) return DOT_ALPHA * age / FADE_IN_MS;
+    var ageAfterIn = age - FADE_IN_MS;
+    if (Math.sign(ageAfterIn - FADE_OUT_MS) !== -1) return 0;
+    return DOT_ALPHA * (1 - ageAfterIn / FADE_OUT_MS);
+  }
+
+  // ── Continuous render loop (replaces per-step redrawUpTo) ─────────────────
+  function renderLoop() {
+    var now = Date.now();
     accumCtx.clearRect(0, 0, CW, CH);
-    accumCtx.beginPath();
-    for (var i = 0; i <= upTo; i++) batchArcs(accumCtx, months[i].px);
-    accumCtx.fillStyle = 'rgba(255,255,255,' + DOT_ALPHA + ')';
-    accumCtx.fill();
+    var i = 0;
+    while (i !== step + 1) {
+      var alpha = getAlpha(i, now);
+      if (Math.sign(alpha - 0.001) === 1) {
+        accumCtx.beginPath();
+        batchArcs(accumCtx, months[i].px);
+        accumCtx.fillStyle = 'rgba(255,255,255,' + alpha.toFixed(3) + ')';
+        accumCtx.fill();
+      }
+      i++;
+    }
+    rafId = requestAnimationFrame(renderLoop);
+  }
+
+  // ── Scrub to a position, synthesising timestamps ───────────────────────────
+  function scrubTo(target) {
+    step = target;
+    var now = Date.now();
+    var i = 0;
+    while (i !== target + 1) {
+      monthShownAt[i] = now - (target - i) * STEP_MS - FADE_IN_MS;
+      i++;
+    }
+    updateHUD(step);
   }
 
   function updateHUD(s) {
@@ -337,24 +373,17 @@
 
   // ── Draw a single step ────────────────────────────────────────────────────
   function drawStep(s) {
-    var pts = months[s].px;
-
-    // Add to permanent accumulation canvas
-    accumCtx.beginPath();
-    batchArcs(accumCtx, pts);
-    accumCtx.fillStyle = 'rgba(255,255,255,' + DOT_ALPHA + ')';
-    accumCtx.fill();
+    monthShownAt[s] = Date.now();
 
     // Flash: paint new dots bright, then CSS-transition them out
     flashCtx.clearRect(0, 0, CW, CH);
     flashCtx.beginPath();
-    batchArcs(flashCtx, pts);
+    batchArcs(flashCtx, months[s].px);
     flashCtx.fillStyle = 'rgba(255,255,255,0.95)';
     flashCtx.fill();
 
     flashCanvas.style.transition = 'none';
     flashCanvas.style.opacity = '1';
-    // Two rAFs ensure the browser paints the opacity=1 frame before transitioning
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         flashCanvas.style.transition = 'opacity 0.65s ease-out';
@@ -374,6 +403,7 @@
       if (isLast) {
         // Reset for loop
         step = 0;
+        monthShownAt = [];
         accumCtx.clearRect(0, 0, CW, CH);
         flashCtx.clearRect(0, 0, CW, CH);
         flashCanvas.style.opacity = '0';
@@ -414,11 +444,12 @@
       computePixels();
       setIcon(true);
       drawStep(0);
+      renderLoop();
       scheduleNext();
     });
 
   }).catch(function (err) {
-    console.error('chi-trees: could not load CSV –', err);
+    console.error('chi-trees: could not load CSV -', err);
     dateEl.textContent = 'Could not load data.';
   });
 
@@ -427,12 +458,13 @@
   window.addEventListener('resize', function () {
     clearTimeout(resizeDebounce);
     resizeDebounce = setTimeout(function () {
+      cancelAnimationFrame(rafId);
       resizeCanvases();
       map.fitBounds(BOUNDS, { animate: false });
       if (months.length) {
         computePixels();
-        redrawUpTo(step);
         updateHUD(step);
+        renderLoop();
       }
     }, 160);
   });

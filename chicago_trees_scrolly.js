@@ -41,14 +41,15 @@
         const tractPlantMap = new Map();
         const reqsMap = new Map();
 
-        // Load all geojson and CSV data
+        // Load all geojson and CSV data using protocol-aware cache-busting to bypass CDN caching on WordPress
+        const cacheBuster = window.location.protocol === 'file:' ? "" : "?v=" + new Date().getTime();
         Promise.all([
-            d3.json(BASE_URL + 'tracts.geojson'),
-            d3.json(BASE_URL + 'communityArea.geojson'),
-            d3.csv(BASE_URL + 'priorityByCensusTract.csv'),
-            d3.csv(BASE_URL + 'plantingsByComArea.csv'),
-            d3.csv(BASE_URL + 'plantingsbyCensusTract.csv'),
-            d3.csv(BASE_URL + 'reqsByCensusTract.csv')
+            d3.json(BASE_URL + '2010tracts.geojson' + cacheBuster),
+            d3.json(BASE_URL + 'communityArea.geojson' + cacheBuster),
+            d3.csv(BASE_URL + 'priorityByCensusTract.csv' + cacheBuster),
+            d3.csv(BASE_URL + 'plantingsByComArea.csv' + cacheBuster),
+            d3.csv(BASE_URL + 'plantingsbyCensusTract.csv' + cacheBuster),
+            d3.csv(BASE_URL + 'reqsByCensusTract.csv' + cacheBuster)
         ]).then(([tractsGeo, caGeo, priorityCsv, caPlantCsv, tractPlantCsv, reqsCsv]) => {
             
             // 1. Process lookup maps, filtering totals/Grand Totals
@@ -77,13 +78,52 @@
                 }
             });
 
-            // 2. Performance Optimization: Filter state-wide tracts to just Chicago
+            // 2. Performance Optimization: Filter state-wide tracts to just Chicago, with coordinate bounds verification
             const chicagoTracts = new Set([
                 ...priorityMap.keys(),
                 ...tractPlantMap.keys(),
                 ...reqsMap.keys()
             ]);
-            tractsGeo.features = tractsGeo.features.filter(f => chicagoTracts.has(f.properties.GEOID || f.properties.FIPS));
+
+            // Helper to validate coordinates are in WGS84 format and within general Chicago boundaries
+            function isValidChicagoWGS84(feature, isTract) {
+                try {
+                    const bounds = d3.geoBounds(feature);
+                    const [[minLon, minLat], [maxLon, maxLat]] = bounds;
+                    
+                    if (isNaN(minLon) || isNaN(minLat) || isNaN(maxLon) || isNaN(maxLat) ||
+                        !isFinite(minLon) || !isFinite(minLat) || !isFinite(maxLon) || !isFinite(maxLat)) {
+                        return false;
+                    }
+                    
+                    // General Chicago bounds (inclusive of O'Hare)
+                    const inChicago = minLon > -88.5 && maxLon < -87.0 && minLat > 41.0 && maxLat < 42.5;
+                    
+                    // Max size span (tracts are small, community areas slightly larger)
+                    const maxSpan = isTract ? 0.15 : 0.3;
+                    const isNormalSize = (maxLon - minLon) < maxSpan && (maxLat - minLat) < maxSpan;
+                    
+                    return inChicago && isNormalSize;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            // Filter out any invalid/Cartesian geometries from community areas
+            caGeo.features = caGeo.features.filter(f => isValidChicagoWGS84(f, false));
+
+            // Normalize GEOID property keys and filter tracts to Chicago bounds
+            tractsGeo.features.forEach(f => {
+                if (f.properties) {
+                    f.properties.GEOID = f.properties.GEOID || f.properties.FIPS || f.properties.geoid10 || f.properties.GEOID10;
+                }
+            });
+
+            tractsGeo.features = tractsGeo.features.filter(f => 
+                f.properties && 
+                chicagoTracts.has(f.properties.GEOID) && 
+                isValidChicagoWGS84(f, true)
+            );
 
             // 3. Setup Projection fit to Chicago Core community areas (excluding O'Hare) to zoom/crop the map
             const mainCityCAs = {

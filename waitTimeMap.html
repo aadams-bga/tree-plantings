@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chicago 311 Tree Request Wait Times</title>
+    <!-- Load D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Load Google Font Inter for premium typography fallback -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        #waittimes-map-container {
+            font-family: "Halyard Text", "halyard-text", "Inter", Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            background-color: #ffffff; 
+            color: #333333; 
+            padding: 20px 20px 30px 20px;
+            box-sizing: border-box;
+        }
+
+        /* Typography */
+        #waittimes-map-container h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+            line-height: 1.25;
+            letter-spacing: -0.01em;
+        }
+
+        #waittimes-map-container p.subtitle {
+            font-size: 14px;
+            color: #4a5568;
+            line-height: 1.45;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        /* Legend Styling */
+        .legend-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            color: #4a5568;
+            font-weight: 500;
+            font-feature-settings: "tnum"; /* Tabular figures for aligned numbers */
+        }
+
+        .legend-bar-wrapper {
+            position: relative;
+            width: 140px;
+            height: 10px;
+        }
+
+        .legend-bar {
+            width: 100%;
+            height: 100%;
+            border-radius: 1px;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+        }
+
+        .legend-marker {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 4px;
+            background-color: #002080;
+            border-left: 1px solid #ffffff;
+            border-right: 1px solid #ffffff;
+            margin-left: -2px;
+            display: none;
+            pointer-events: none;
+        }
+
+        /* Map SVG styling */
+        #map-svg {
+            display: none;
+            width: 100%;
+            height: auto;
+            margin: 0 auto;
+        }
+
+        .ca-path {
+            stroke: #ffffff;
+            stroke-width: 0.6px;
+            cursor: pointer;
+            transition: fill 0.15s ease;
+        }
+
+        /* Tooltip Styling */
+        #map-tooltip {
+            position: absolute;
+            pointer-events: none;
+            display: none;
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 8px 12px;
+            font-size: 13px;
+            color: #1f2937;
+            border-radius: 2px;
+            z-index: 100;
+            line-height: 1.4;
+            max-width: 250px;
+        }
+
+        #map-tooltip .tooltip-header {
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 2px;
+        }
+
+        #map-tooltip .tooltip-body {
+            font-weight: 400;
+            color: #4b5563;
+        }
+
+        /* Footer Branding & Logo */
+        .graph-footer {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #718096;
+            line-height: 1.4;
+            position: relative;
+            z-index: 1;
+        }
+
+        .iap-logo {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 150px;
+            opacity: 0.15;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Loading Indicator */
+        #map-loader {
+            padding: 150px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #718096;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div id="waittimes-map-container">
+    <!-- Title and Subtitle -->
+    <h1>The South and West sides face drastically longer wait times for tree planting requests</h1>
+    <p class="subtitle">
+        When residents on the North Side make 311 requests for a tree planting they can expect wait times often less than six months. But on the South and West Sides, people face wait times that are much longer, sometimes averaging more than a year.
+    </p>
+
+    <!-- Legend -->
+    <div class="legend-container">
+        <span id="legend-min-val">88.29</span>
+        <div class="legend-bar-wrapper">
+            <div class="legend-bar"></div>
+            <div class="legend-marker" id="legend-tick"></div>
+        </div>
+        <span id="legend-max-val">441.87</span>
+    </div>
+
+    <!-- Map SVG -->
+    <div style="position: relative;">
+        <div id="map-loader">Loading map data...</div>
+        <svg id="map-svg" viewBox="0 0 544 500" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="map-tooltip">
+        <div class="tooltip-header">Wait time to resolve 311 requests</div>
+        <div class="tooltip-body" id="tooltip-content"></div>
+    </div>
+
+    <!-- Footer & Logo -->
+    <footer class="graph-footer">
+        Source: City of Chicago • Map: Andrew Adams, Illinois Answers Project
+    </footer>
+    <img src="https://raw.githubusercontent.com/aadams-bga/images/bffe8cc967881aeed4fbdee8328f4b2e056159b9/iaplogo.svg" class="iap-logo" alt="Illinois Answers Project Logo">
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Helper to format names to Title Case
+    function toTitleCase(str) {
+        if (!str) return '';
+        let title = str.toLowerCase().split(' ').map(word => {
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(' ');
+        if (title === "Ohare") return "O'Hare";
+        if (title === "Mckinley Park") return "McKinley Park";
+        return title;
+    }
+
+    // Protocol-aware path resolution for loading data
+    const isFileProtocol = window.location.protocol === 'file:';
+    const BASE_URL = isFileProtocol 
+        ? 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/main/' 
+        : '';
+
+    // Cache buster for CDN bypass when hosted
+    const cacheBuster = isFileProtocol ? "" : "?v=" + new Date().getTime();
+
+    // Load CSV and GeoJSON concurrently
+    Promise.all([
+        d3.json(BASE_URL + 'communityArea.geojson' + cacheBuster),
+        d3.csv(BASE_URL + 'waittimes.csv' + cacheBuster)
+    ]).then(([geoData, csvData]) => {
+        // Hide loading indicator and show map SVG
+        d3.select("#map-loader").style("display", "none");
+        d3.select("#map-svg").style("display", "block");
+
+        // Parse wait times data into a Map
+        // CSV Headers: "name" and "311 tree request wait times (days)"
+        const waitTimesMap = new Map();
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+
+        csvData.forEach(d => {
+            const name = d.name.toUpperCase().trim();
+            const val = parseFloat(d["311 tree request wait times (days)"]);
+            if (!isNaN(val)) {
+                waitTimesMap.set(name, val);
+                if (val < minVal) minVal = val;
+                if (val > maxVal) maxVal = val;
+            }
+        });
+
+        // Set exact legend labels from data (rounded)
+        d3.select("#legend-min-val").text(Math.round(minVal));
+        d3.select("#legend-max-val").text(Math.round(maxVal));
+
+        // Create sequential color scale mapping min/max values
+        // We customize the interpolator domain to [0.15, 1.0] so light blue values remain clearly visible
+        const colorScale = d3.scaleSequential(t => d3.interpolateBlues(0.15 + t * 0.85))
+            .domain([minVal, maxVal]);
+
+        // Draw CSS background gradient for the legend bar matching the color scale
+        const legendStops = [];
+        for (let i = 0; i <= 10; i++) {
+            legendStops.push(d3.interpolateBlues(0.15 + (i / 10) * 0.85));
+        }
+        d3.select(".legend-bar").style("background", `linear-gradient(to right, ${legendStops.join(", ")})`);
+
+        // Dimensions of the Map SVG
+        const width = 544;
+        const height = 500;
+
+        const svg = d3.select("#map-svg");
+
+        // Set up mercator projection and scale to fit all features (including O'Hare)
+        const projection = d3.geoMercator()
+            .fitExtent([[10, 10], [width - 10, height - 10]], geoData);
+
+        const pathGenerator = d3.geoPath().projection(projection);
+
+        // Tooltip selection
+        const tooltip = d3.select("#map-tooltip");
+        const tooltipContent = d3.select("#tooltip-content");
+        const legendTick = d3.select("#legend-tick");
+        const container = d3.select("#waittimes-map-container").node();
+
+        // Draw community area paths
+        svg.append("g")
+            .selectAll(".ca-path")
+            .data(geoData.features)
+            .enter()
+            .append("path")
+            .attr("class", "ca-path")
+            .attr("d", pathGenerator)
+            .attr("fill", d => {
+                const name = d.properties.community.toUpperCase().trim();
+                const val = waitTimesMap.get(name);
+                return val !== undefined ? colorScale(val) : "#e2e8f0";
+            })
+            .on("mouseover", function(event, d) {
+                const name = d.properties.community.toUpperCase().trim();
+                const val = waitTimesMap.get(name);
+                
+                // 1. Highlight Path: dark outline and raise path to draw on top of adjacent boundaries
+                d3.select(this)
+                    .raise()
+                    .attr("stroke", "#333333")
+                    .attr("stroke-width", "1.5px");
+
+                // 2. Show Tooltip with rounded value and proper casing
+                const displayName = toTitleCase(name);
+                if (val !== undefined) {
+                    tooltip.style("display", "block");
+                    tooltipContent.html(`${displayName}: ${Math.round(val)}`);
+
+                    // 3. Move Legend Marker
+                    const pct = ((val - minVal) / (maxVal - minVal)) * 100;
+                    legendTick.style("display", "block")
+                        .style("left", `${pct}%`)
+                        .style("background-color", colorScale(val));
+                } else {
+                    tooltip.style("display", "block");
+                    tooltipContent.html(`${displayName}: No data`);
+                    legendTick.style("display", "none");
+                }
+            })
+            .on("mousemove", function(event) {
+                // Position tooltip relative to the map container coordinates
+                const coords = d3.pointer(event, container);
+                
+                // Check if tooltip would overflow right boundary
+                const tooltipNode = tooltip.node();
+                const tooltipWidth = tooltipNode.offsetWidth;
+                const containerWidth = container.offsetWidth;
+
+                let leftPos = coords[0] + 15;
+                if (leftPos + tooltipWidth > containerWidth - 20) {
+                    leftPos = coords[0] - tooltipWidth - 15;
+                }
+
+                tooltip
+                    .style("left", `${leftPos}px`)
+                    .style("top", `${coords[1] + 15}px`);
+            })
+            .on("mouseleave", function() {
+                // Restore original styling
+                d3.select(this)
+                    .attr("stroke", "#ffffff")
+                    .attr("stroke-width", "0.6px");
+
+                // Hide tooltip and legend marker
+                tooltip.style("display", "none");
+                legendTick.style("display", "none");
+            });
+    }).catch(error => {
+        console.error("Error loading visual data files:", error);
+        d3.select("#map-loader")
+            .text("Failed to load map data. Please ensure CSV and GeoJSON are in the same folder.")
+            .style("color", "#c53030");
+    });
+});
+</script>
+
+</body>
+</html>

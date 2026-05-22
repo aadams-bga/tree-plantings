@@ -7,13 +7,12 @@
         color: #333;
     }
     .tree-lookup-card {
-        background: #f9f9f9;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 24px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 24px 0;
+        background: transparent;
+        border-top: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
     }
-    .tree-lookup-card h3 { margin-top: 0; color: #2c3e50; }
+    .tree-lookup-card h3 { margin-top: 0; color: #2c3e50; font-size: 20px; }
     .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
     #address-input {
         flex-grow: 1;
@@ -23,8 +22,8 @@
         font-size: 16px;
     }
     #search-btn {
-        background: #27ae60;
-        color: white;
+        background: #FAC346;
+        color: #2f2f2f;
         border: none;
         padding: 0 20px;
         border-radius: 4px;
@@ -32,159 +31,1102 @@
         font-weight: bold;
         transition: background 0.2s;
     }
-    #search-btn:hover { background: #219150; }
+    #search-btn:hover { background: #d6ab49; }
     .hidden { display: none; }
     #loader { color: #666; font-style: italic; margin-bottom: 15px; }
     #error-msg { color: #c0392b; background: #fdf2f2; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
     
     .stat-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 15px;
-        margin-top: 20px;
-        background: white;
-        padding: 15px;
-        border-radius: 6px;
-        border: 1px solid #eee;
+        margin-top: 25px;
+        padding: 0;
+        background: transparent;
+        border: none;
     }
-    .stat-item { display: flex; flex-direction: column; }
-    .stat-label { font-size: 12px; text-transform: uppercase; color: #7f8c8d; font-weight: bold; }
-    .stat-value { font-size: 18px; color: #2c3e50; font-weight: bold; }
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 12px;
+    }
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #95a5a6;
+        font-weight: bold;
+        margin-bottom: 4px;
+        letter-spacing: 0.5px;
+    }
+    .stat-value {
+        font-size: 15px;
+        color: #333;
+        font-weight: bold;
+    }
+    .stat-desc {
+        font-size: 15px;
+        font-weight: normal;
+        color: #555;
+        margin-left: 2px;
+    }
     .data-note { font-size: 11px; color: #95a5a6; margin-top: 15px; }
 </style>
 
 <div id="tree-lookup-container">
     <div class="tree-lookup-card">
-        <h3>Find Tree Data for Your Neighborhood</h3>
-        <p>Enter your Chicago address to see tree planting stats for your Census Tract.</p>
+        <h3>Find tree data for your neighborhood</h3>
+        <p>Enter your Chicago address to see tree planting stats for your area. </p>
         
         <div class="search-box">
             <input type="text" id="address-input" placeholder="e.g. 121 N LaSalle St, Chicago, IL">
             <button onclick="lookupAddress()" id="search-btn">Search</button>
         </div>
 
-        <div id="loader" class="hidden">Searching Census records...</div>
+        <div id="loader" class="hidden">Searching...</div>
         <div id="error-msg" class="hidden"></div>
 
         <div id="results-area" class="hidden">
             <div class="stat-grid">
                 <div class="stat-item">
-                    <span class="stat-label">Census Tract</span>
-                    <span class="stat-value" id="val-tract">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Total Trees Planted</span>
-                    <span class="stat-value" id="val-trees">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Canopy Coverage</span>
-                    <span class="stat-value" id="val-canopy">-</span>
-                </div>
-                <div class="stat-item">
                     <span class="stat-label">Neighborhood</span>
                     <span class="stat-value" id="val-neighborhood">-</span>
                 </div>
+                <div class="stat-item">
+                    <span class="stat-label">Canopy coverage as of 2022</span>
+                    <span class="stat-value">
+                        <span id="val-canopy">-</span><span class="stat-desc" id="val-canopy-desc"></span>
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Priority category</span>
+                    <span class="stat-value" id="val-priority">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tree planting requests since 2022</span>
+                    <span class="stat-value">
+                        <span id="val-requests">-</span><span class="stat-desc" id="val-requests-desc"></span>
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Trees planted since 2022</span>
+                    <span class="stat-value">
+                        <span id="val-trees">-</span><span class="stat-desc" id="val-trees-desc"></span>
+                    </span>
+                </div>
             </div>
-            <p class="data-note">Source: City of Chicago Tree Inventory & US Census Bureau.</p>
+            <p class="data-note">Source: Chicago Department of Streets and Sanitation, Chicago Department of Transportation, Morton Arboretum, Chicago Office of Tourism, U.S. Census Bureau, Illinois Answers analysis.</p>
+            <p class="data-note" style="margin-top: 5px;">Priority based on Morton Arboretum Chicago Region Trees Initative. Census tract analysis based on 2010 boundaries. This address is in census tract <span id="val-tract-note" style="font-weight: bold;">-</span>.</p>
         </div>
     </div>
 </div>
 
 <script>
-    /**
-     * DUMMY DATA GENERATOR
-     * Creates fake but realistic-looking data based on the Census Tract ID
-     */
-    function getDummyData(geoid) {
-        const idNumber = parseInt(geoid.slice(-4)) || Math.floor(Math.random() * 9999);
-        return {
-            trees: (idNumber % 450) + 50,
-            canopy: ((idNumber % 250) / 10 + 5).toFixed(1) + "%",
-            neighborhood: "Chicago Area " + (idNumber % 77 + 1)
-        };
+    /* Embedded 2010 Census Tract to Neighborhood Name mapping */
+    const NEIGHBORHOOD_MAP = {
+        "17031010100": "Rogers Park",
+        "17031010201": "Rogers Park",
+        "17031010202": "Rogers Park",
+        "17031010300": "Rogers Park",
+        "17031010400": "Rogers Park",
+        "17031010501": "Rogers Park",
+        "17031010502": "Rogers Park",
+        "17031010503": "Rogers Park",
+        "17031010600": "Rogers Park",
+        "17031010701": "Rogers Park",
+        "17031010702": "Rogers Park",
+        "17031020100": "West Ridge",
+        "17031020200": "West Ridge",
+        "17031020301": "West Ridge",
+        "17031020302": "West Ridge",
+        "17031020400": "West Ridge",
+        "17031020500": "West Ridge",
+        "17031020601": "West Ridge",
+        "17031020602": "West Ridge",
+        "17031020701": "West Ridge",
+        "17031020702": "West Ridge",
+        "17031020801": "West Ridge",
+        "17031020802": "West Ridge",
+        "17031020901": "West Ridge",
+        "17031020902": "West Ridge",
+        "17031030101": "Edgewater",
+        "17031030102": "Edgewater",
+        "17031030103": "Edgewater",
+        "17031030104": "Edgewater",
+        "17031030200": "Edgewater",
+        "17031030300": "Edgewater",
+        "17031030400": "Edgewater",
+        "17031030500": "Edgewater",
+        "17031030601": "Edgewater",
+        "17031030603": "Edgewater",
+        "17031030604": "Edgewater",
+        "17031030701": "Edgewater",
+        "17031030702": "Edgewater",
+        "17031030703": "Edgewater",
+        "17031030706": "Edgewater",
+        "17031030800": "Andersonville",
+        "17031030900": "Andersonville",
+        "17031031000": "Uptown",
+        "17031031100": "Uptown",
+        "17031031200": "Uptown",
+        "17031031300": "Uptown",
+        "17031031400": "Uptown",
+        "17031031501": "Uptown",
+        "17031031502": "Uptown",
+        "17031031700": "Uptown",
+        "17031031800": "Uptown",
+        "17031031900": "Uptown",
+        "17031032100": "Uptown",
+        "17031040100": "Lincoln Square",
+        "17031040201": "Lincoln Square",
+        "17031040202": "Lincoln Square",
+        "17031040300": "Lincoln Square",
+        "17031040401": "Lincoln Square",
+        "17031040402": "Lincoln Square",
+        "17031040600": "Lincoln Square",
+        "17031040700": "Lincoln Square",
+        "17031040800": "Lincoln Square",
+        "17031040900": "Lincoln Square",
+        "17031050100": "North Center",
+        "17031050200": "North Center",
+        "17031050300": "North Center",
+        "17031050500": "North Center",
+        "17031050600": "North Center",
+        "17031050700": "North Center",
+        "17031050800": "North Center",
+        "17031050900": "North Center",
+        "17031051000": "North Center",
+        "17031051100": "North Center",
+        "17031051200": "North Center",
+        "17031051300": "North Center",
+        "17031051400": "North Center",
+        "17031060100": "Lake View",
+        "17031060200": "Lake View",
+        "17031060300": "Lake View",
+        "17031060400": "Lake View",
+        "17031060500": "Wrigleyville",
+        "17031060800": "Lake View",
+        "17031060900": "Lake View",
+        "17031061000": "Lake View",
+        "17031061100": "Wrigleyville",
+        "17031061200": "Wrigleyville",
+        "17031061500": "Lake View",
+        "17031061800": "Boystown",
+        "17031061901": "Lake View",
+        "17031061902": "Lake View",
+        "17031062000": "Boystown",
+        "17031062100": "Lake View",
+        "17031062200": "Lake View",
+        "17031062300": "Lake View",
+        "17031062400": "Lake View",
+        "17031062500": "Lake View",
+        "17031062600": "Lake View",
+        "17031062700": "Lake View",
+        "17031062800": "Lake View",
+        "17031062900": "Lake View",
+        "17031063000": "Lake View",
+        "17031063100": "Lake View",
+        "17031063200": "Lake View",
+        "17031063301": "Lake View",
+        "17031063302": "Lake View",
+        "17031063303": "Lake View",
+        "17031063400": "Lake View",
+        "17031070101": "Lincoln Park",
+        "17031070102": "Lincoln Park",
+        "17031070103": "Lincoln Park",
+        "17031070200": "Lincoln Park",
+        "17031070300": "Sheffield & DePaul",
+        "17031070400": "Sheffield & DePaul",
+        "17031070500": "Lincoln Park",
+        "17031070600": "Lincoln Park",
+        "17031070700": "Lincoln Park",
+        "17031071000": "Sheffield & DePaul",
+        "17031071100": "Lincoln Park",
+        "17031071200": "Lincoln Park",
+        "17031071300": "Lincoln Park",
+        "17031071400": "Lincoln Park",
+        "17031071500": "Lincoln Park",
+        "17031071600": "Old Town",
+        "17031071700": "Old Town",
+        "17031071800": "Old Town",
+        "17031080100": "Gold Coast",
+        "17031080201": "Gold Coast",
+        "17031080202": "Gold Coast",
+        "17031080300": "Old Town",
+        "17031080400": "Old Town",
+        "17031081000": "River North",
+        "17031081100": "Rush & Division",
+        "17031081201": "Streeterville",
+        "17031081202": "Gold Coast",
+        "17031081300": "Streeterville",
+        "17031081401": "Streeterville",
+        "17031081402": "Streeterville",
+        "17031081403": "Streeterville",
+        "17031081500": "River North",
+        "17031081600": "River North",
+        "17031081700": "River North",
+        "17031081800": "River North",
+        "17031081900": "River North",
+        "17031090100": "Edison Park",
+        "17031090200": "Edison Park",
+        "17031090300": "Edison Park",
+        "17031100100": "Norwood Park",
+        "17031100200": "Norwood Park",
+        "17031100300": "Norwood Park",
+        "17031100400": "Norwood Park",
+        "17031100500": "Norwood Park",
+        "17031100600": "Norwood Park",
+        "17031100700": "Norwood Park",
+        "17031110100": "Jefferson Park",
+        "17031110200": "Jefferson Park",
+        "17031110300": "Jefferson Park",
+        "17031110400": "Jefferson Park",
+        "17031110501": "Jefferson Park",
+        "17031110502": "Jefferson Park",
+        "17031120100": "Sauganash,Forest Glen",
+        "17031120200": "Sauganash,Forest Glen",
+        "17031120300": "Sauganash,Forest Glen",
+        "17031120400": "Sauganash,Forest Glen",
+        "17031130100": "North Park",
+        "17031130200": "North Park",
+        "17031130300": "North Park",
+        "17031140100": "Albany Park",
+        "17031140200": "Albany Park",
+        "17031140301": "Albany Park",
+        "17031140302": "Albany Park",
+        "17031140400": "Albany Park",
+        "17031140500": "Albany Park",
+        "17031140601": "Albany Park",
+        "17031140602": "Albany Park",
+        "17031140701": "Albany Park",
+        "17031140702": "Albany Park",
+        "17031140800": "Albany Park",
+        "17031150200": "Portage Park",
+        "17031150300": "Portage Park",
+        "17031150401": "Portage Park",
+        "17031150402": "Portage Park",
+        "17031150501": "Portage Park",
+        "17031150502": "Portage Park",
+        "17031150600": "Portage Park",
+        "17031150700": "Portage Park",
+        "17031150800": "Portage Park",
+        "17031151001": "Portage Park",
+        "17031151002": "Portage Park",
+        "17031151100": "Portage Park",
+        "17031151200": "Portage Park",
+        "17031160100": "Irving Park",
+        "17031160200": "Irving Park",
+        "17031160300": "Irving Park",
+        "17031160400": "Irving Park",
+        "17031160501": "Irving Park",
+        "17031160502": "Irving Park",
+        "17031160601": "Irving Park",
+        "17031160602": "Irving Park",
+        "17031160700": "Irving Park",
+        "17031160800": "Irving Park",
+        "17031160900": "Irving Park",
+        "17031161000": "Irving Park",
+        "17031161100": "Irving Park",
+        "17031161200": "Irving Park",
+        "17031161300": "Irving Park",
+        "17031170100": "Dunning",
+        "17031170200": "Dunning",
+        "17031170300": "Dunning",
+        "17031170400": "Dunning",
+        "17031170500": "Dunning",
+        "17031170600": "Dunning",
+        "17031170700": "Dunning",
+        "17031170800": "Dunning",
+        "17031170900": "Dunning",
+        "17031171000": "Dunning",
+        "17031171100": "Dunning",
+        "17031180100": "Montclare",
+        "17031190100": "Belmont Cragin",
+        "17031190200": "Belmont Cragin",
+        "17031190300": "Belmont Cragin",
+        "17031190401": "Belmont Cragin",
+        "17031190402": "Belmont Cragin",
+        "17031190601": "Belmont Cragin",
+        "17031190602": "Belmont Cragin",
+        "17031190701": "Belmont Cragin",
+        "17031190702": "Belmont Cragin",
+        "17031190800": "Belmont Cragin",
+        "17031190900": "Belmont Cragin",
+        "17031191000": "Belmont Cragin",
+        "17031191100": "Belmont Cragin",
+        "17031191200": "Belmont Cragin",
+        "17031191301": "Belmont Cragin",
+        "17031191302": "Belmont Cragin",
+        "17031200100": "Hermosa",
+        "17031200200": "Hermosa",
+        "17031200300": "Hermosa",
+        "17031200401": "Hermosa",
+        "17031200402": "Hermosa",
+        "17031210100": "Avondale",
+        "17031210400": "Avondale",
+        "17031210501": "Avondale",
+        "17031210502": "Avondale",
+        "17031210601": "Avondale",
+        "17031210602": "Avondale",
+        "17031210700": "Avondale",
+        "17031210800": "Avondale",
+        "17031210900": "Avondale",
+        "17031220300": "Logan Square",
+        "17031220400": "Logan Square",
+        "17031220500": "Logan Square",
+        "17031220601": "Logan Square",
+        "17031220602": "Logan Square",
+        "17031220701": "Logan Square",
+        "17031220702": "Logan Square",
+        "17031220901": "Logan Square",
+        "17031220902": "Logan Square",
+        "17031221000": "Logan Square",
+        "17031221100": "Logan Square",
+        "17031221200": "Logan Square",
+        "17031221300": "Logan Square",
+        "17031221400": "Logan Square",
+        "17031221500": "Logan Square",
+        "17031221600": "Bucktown",
+        "17031222200": "Bucktown",
+        "17031222500": "Logan Square",
+        "17031222600": "Logan Square",
+        "17031222700": "Logan Square",
+        "17031222800": "Logan Square",
+        "17031222900": "Logan Square",
+        "17031230100": "Humboldt Park",
+        "17031230200": "Humboldt Park",
+        "17031230300": "Humboldt Park",
+        "17031230400": "Humboldt Park",
+        "17031230500": "Humboldt Park",
+        "17031230600": "Humboldt Park",
+        "17031230700": "Humboldt Park",
+        "17031230800": "Humboldt Park",
+        "17031230900": "Humboldt Park",
+        "17031231100": "Humboldt Park",
+        "17031231200": "Humboldt Park",
+        "17031231500": "Humboldt Park",
+        "17031240200": "Wicker Park",
+        "17031240300": "Wicker Park",
+        "17031240500": "Wicker Park",
+        "17031240600": "Wicker Park",
+        "17031240700": "Humboldt Park",
+        "17031240800": "Humboldt Park",
+        "17031240900": "Humboldt Park",
+        "17031241000": "Humboldt Park",
+        "17031241100": "Wicker Park",
+        "17031241200": "Wicker Park",
+        "17031241300": "Wicker Park",
+        "17031241400": "Wicker Park",
+        "17031241500": "Wicker Park",
+        "17031241600": "West Town",
+        "17031242000": "West Town",
+        "17031242100": "East Village",
+        "17031242200": "East Village",
+        "17031242300": "Ukrainian Village",
+        "17031242400": "Ukrainian Village",
+        "17031242500": "Ukrainian Village",
+        "17031242600": "Humboldt Park",
+        "17031242700": "Humboldt Park",
+        "17031242800": "West Town",
+        "17031242900": "West Town",
+        "17031243000": "West Town",
+        "17031243100": "West Town",
+        "17031243200": "West Town",
+        "17031243300": "West Town",
+        "17031243400": "West Town",
+        "17031243500": "West Town",
+        "17031250200": "Austin",
+        "17031250300": "Austin",
+        "17031250400": "Austin",
+        "17031250500": "Galewood",
+        "17031250600": "Austin",
+        "17031250700": "Austin",
+        "17031250800": "Austin",
+        "17031251000": "Austin",
+        "17031251100": "Austin",
+        "17031251200": "Austin",
+        "17031251300": "Austin",
+        "17031251400": "Austin",
+        "17031251500": "Austin",
+        "17031251600": "Austin",
+        "17031251700": "Austin",
+        "17031251800": "Austin",
+        "17031251900": "Austin",
+        "17031252000": "Austin",
+        "17031252101": "Austin",
+        "17031252102": "Austin",
+        "17031252201": "Austin",
+        "17031252202": "Austin",
+        "17031260100": "Garfield Park",
+        "17031260200": "Garfield Park",
+        "17031260300": "Garfield Park",
+        "17031260400": "Garfield Park",
+        "17031260500": "Garfield Park",
+        "17031260600": "Garfield Park",
+        "17031260700": "Garfield Park",
+        "17031260800": "Garfield Park",
+        "17031260900": "Garfield Park",
+        "17031261000": "Garfield Park",
+        "17031270500": "Garfield Park",
+        "17031271200": "Garfield Park",
+        "17031271300": "Garfield Park",
+        "17031271400": "Garfield Park",
+        "17031271500": "Garfield Park",
+        "17031271800": "Garfield Park",
+        "17031280100": "West Loop",
+        "17031280400": "United Center",
+        "17031280800": "United Center",
+        "17031280900": "United Center",
+        "17031281900": "West Loop",
+        "17031282700": "Little Italy, UIC",
+        "17031282800": "Little Italy, UIC",
+        "17031283100": "Little Italy, UIC",
+        "17031283200": "Little Italy, UIC",
+        "17031283800": "Little Italy, UIC",
+        "17031290900": "North Lawndale",
+        "17031291200": "North Lawndale",
+        "17031291600": "North Lawndale",
+        "17031292200": "North Lawndale",
+        "17031292400": "North Lawndale",
+        "17031292500": "North Lawndale",
+        "17031300500": "Little Village",
+        "17031300600": "Little Village",
+        "17031300700": "Little Village",
+        "17031300800": "Little Village",
+        "17031300900": "Little Village",
+        "17031301100": "Little Village",
+        "17031301200": "Little Village",
+        "17031301600": "Little Village",
+        "17031301701": "Little Village",
+        "17031301702": "Little Village",
+        "17031301801": "Little Village",
+        "17031301802": "Little Village",
+        "17031301803": "Little Village",
+        "17031310200": "Lower West Side",
+        "17031310300": "Lower West Side",
+        "17031310400": "Lower West Side",
+        "17031310500": "Lower West Side",
+        "17031310600": "Lower West Side",
+        "17031310700": "Lower West Side",
+        "17031310800": "Lower West Side",
+        "17031310900": "Lower West Side",
+        "17031320100": "Loop",
+        "17031320400": "Grant Park",
+        "17031320600": "Grant Park",
+        "17031330100": "Near South Side",
+        "17031330200": "Near South Side",
+        "17031340300": "Armour Square",
+        "17031340400": "Armour Square",
+        "17031340500": "Armour Square",
+        "17031340600": "Armour Square",
+        "17031350100": "Douglas",
+        "17031350400": "Douglas",
+        "17031351000": "Douglas",
+        "17031351100": "Douglas",
+        "17031351400": "Douglas",
+        "17031351500": "Douglas",
+        "17031360200": "Oakland",
+        "17031380100": "Grand Boulevard",
+        "17031380200": "Grand Boulevard",
+        "17031380500": "Grand Boulevard",
+        "17031380700": "Grand Boulevard",
+        "17031381200": "Grand Boulevard",
+        "17031381400": "Grand Boulevard",
+        "17031381500": "Grand Boulevard",
+        "17031381700": "Grand Boulevard",
+        "17031381800": "Grand Boulevard",
+        "17031381900": "Grand Boulevard",
+        "17031390100": "Kenwood",
+        "17031390200": "Kenwood",
+        "17031390300": "Kenwood",
+        "17031390400": "Kenwood",
+        "17031390500": "Kenwood",
+        "17031390600": "Kenwood",
+        "17031390700": "Kenwood",
+        "17031400300": "Washington Park",
+        "17031400400": "Washington Park",
+        "17031400500": "Washington Park",
+        "17031400800": "Washington Park",
+        "17031410100": "Hyde Park",
+        "17031410200": "Hyde Park",
+        "17031410500": "Hyde Park",
+        "17031410600": "Hyde Park",
+        "17031410700": "Hyde Park",
+        "17031410800": "Hyde Park",
+        "17031410900": "Hyde Park",
+        "17031411000": "Jackson Park",
+        "17031411100": "Hyde Park",
+        "17031411200": "Hyde Park",
+        "17031420100": "Jackson Park",
+        "17031420200": "Woodlawn",
+        "17031420300": "Woodlawn",
+        "17031420400": "Woodlawn",
+        "17031420500": "Woodlawn",
+        "17031420600": "Woodlawn",
+        "17031420700": "Woodlawn",
+        "17031420800": "Woodlawn",
+        "17031421200": "Woodlawn",
+        "17031430101": "South Shore",
+        "17031430102": "South Shore",
+        "17031430200": "South Shore",
+        "17031430300": "South Shore",
+        "17031430400": "South Shore",
+        "17031430500": "South Shore",
+        "17031430600": "South Shore",
+        "17031430700": "South Shore",
+        "17031430800": "South Shore",
+        "17031430900": "South Shore",
+        "17031431200": "South Shore",
+        "17031431301": "South Shore",
+        "17031431302": "South Shore",
+        "17031431400": "South Shore",
+        "17031440101": "Chatham",
+        "17031440102": "Chatham",
+        "17031440201": "Chatham",
+        "17031440202": "Chatham",
+        "17031440300": "Chatham",
+        "17031440600": "Chatham",
+        "17031440700": "Chatham",
+        "17031440800": "Chatham",
+        "17031440900": "Chatham",
+        "17031450300": "Avalon Park",
+        "17031460100": "South Chicago",
+        "17031460200": "South Chicago",
+        "17031460301": "South Chicago",
+        "17031460302": "South Chicago",
+        "17031460400": "South Chicago",
+        "17031460500": "South Chicago",
+        "17031460600": "South Chicago",
+        "17031460700": "South Chicago",
+        "17031461000": "South Chicago",
+        "17031470100": "Burnside",
+        "17031480100": "Calumet Heights",
+        "17031480200": "Calumet Heights",
+        "17031480300": "Calumet Heights",
+        "17031480400": "Calumet Heights",
+        "17031480500": "Calumet Heights",
+        "17031490300": "Roseland",
+        "17031490400": "Roseland",
+        "17031490500": "Roseland",
+        "17031490600": "Roseland",
+        "17031490700": "Roseland",
+        "17031490800": "Roseland",
+        "17031490901": "Roseland",
+        "17031490902": "Roseland",
+        "17031491000": "Roseland",
+        "17031491100": "Roseland",
+        "17031491200": "Roseland",
+        "17031491300": "Roseland",
+        "17031491400": "Roseland",
+        "17031500100": "Pullman",
+        "17031500200": "Pullman",
+        "17031500300": "Pullman",
+        "17031510100": "South Deering",
+        "17031510200": "South Deering",
+        "17031510300": "South Deering",
+        "17031520100": "East Side",
+        "17031520200": "East Side",
+        "17031520300": "East Side",
+        "17031520400": "East Side",
+        "17031520500": "East Side",
+        "17031520600": "East Side",
+        "17031530100": "West Pullman",
+        "17031530200": "West Pullman",
+        "17031530300": "West Pullman",
+        "17031530400": "West Pullman",
+        "17031530501": "West Pullman",
+        "17031530502": "West Pullman",
+        "17031530503": "West Pullman",
+        "17031530600": "West Pullman",
+        "17031540101": "Riverdale",
+        "17031540102": "Riverdale",
+        "17031550100": "Hegewisch",
+        "17031550200": "Hegewisch",
+        "17031560100": "Garfield Ridge",
+        "17031560200": "Garfield Ridge",
+        "17031560300": "Garfield Ridge",
+        "17031560400": "Garfield Ridge",
+        "17031560700": "Garfield Ridge",
+        "17031560800": "Garfield Ridge",
+        "17031560900": "Garfield Ridge",
+        "17031561000": "Garfield Ridge",
+        "17031561100": "Garfield Ridge",
+        "17031570100": "Archer Heights",
+        "17031570200": "Archer Heights",
+        "17031570300": "Archer Heights",
+        "17031570400": "Archer Heights",
+        "17031570500": "Archer Heights",
+        "17031580100": "Brighton Park",
+        "17031580200": "Brighton Park",
+        "17031580300": "Brighton Park",
+        "17031580400": "Brighton Park",
+        "17031580501": "Brighton Park",
+        "17031580502": "Brighton Park",
+        "17031580600": "Brighton Park",
+        "17031580700": "Brighton Park",
+        "17031580800": "Brighton Park",
+        "17031590500": "Mckinley Park",
+        "17031590600": "Mckinley Park",
+        "17031590700": "Mckinley Park",
+        "17031600400": "Bridgeport",
+        "17031600600": "Bridgeport",
+        "17031600700": "Bridgeport",
+        "17031600900": "Bridgeport",
+        "17031610300": "New City",
+        "17031610400": "New City",
+        "17031610800": "New City",
+        "17031611000": "New City",
+        "17031611100": "New City",
+        "17031611200": "New City",
+        "17031611300": "New City",
+        "17031611400": "New City",
+        "17031611500": "New City",
+        "17031611600": "New City",
+        "17031611700": "New City",
+        "17031611800": "New City",
+        "17031611900": "New City",
+        "17031612000": "New City",
+        "17031612100": "New City",
+        "17031620100": "West Elsdon",
+        "17031620200": "West Elsdon",
+        "17031620300": "West Elsdon",
+        "17031620400": "West Elsdon",
+        "17031630100": "Gage Park",
+        "17031630200": "Gage Park",
+        "17031630300": "Gage Park",
+        "17031630400": "Gage Park",
+        "17031630500": "Gage Park",
+        "17031630800": "Gage Park",
+        "17031630900": "Gage Park",
+        "17031640100": "Clearing",
+        "17031640300": "Clearing",
+        "17031640400": "Clearing",
+        "17031640500": "Clearing",
+        "17031640600": "Clearing",
+        "17031640700": "Clearing",
+        "17031640800": "Clearing",
+        "17031650100": "West Lawn",
+        "17031650200": "West Lawn",
+        "17031650301": "West Lawn",
+        "17031650302": "West Lawn",
+        "17031650400": "West Lawn",
+        "17031650500": "West Lawn",
+        "17031660301": "Chicago Lawn",
+        "17031660302": "Chicago Lawn",
+        "17031660400": "Chicago Lawn",
+        "17031660500": "Chicago Lawn",
+        "17031660600": "Chicago Lawn",
+        "17031660700": "Chicago Lawn",
+        "17031660800": "Chicago Lawn",
+        "17031660900": "Chicago Lawn",
+        "17031661000": "Chicago Lawn",
+        "17031661100": "Chicago Lawn",
+        "17031670100": "Englewood",
+        "17031670200": "Englewood",
+        "17031670300": "Englewood",
+        "17031670400": "Englewood",
+        "17031670500": "Englewood",
+        "17031670600": "Englewood",
+        "17031670700": "Englewood",
+        "17031670800": "Englewood",
+        "17031670900": "Englewood",
+        "17031671100": "Englewood",
+        "17031671200": "Englewood",
+        "17031671300": "Englewood",
+        "17031671400": "Englewood",
+        "17031671500": "Englewood",
+        "17031671600": "Englewood",
+        "17031671800": "Englewood",
+        "17031671900": "Englewood",
+        "17031672000": "Englewood",
+        "17031680500": "Englewood",
+        "17031680600": "Englewood",
+        "17031680900": "Englewood",
+        "17031681000": "Englewood",
+        "17031681100": "Englewood",
+        "17031681200": "Englewood",
+        "17031681300": "Englewood",
+        "17031681400": "Englewood",
+        "17031690300": "Grand Crossing",
+        "17031690400": "Grand Crossing",
+        "17031690500": "Grand Crossing",
+        "17031690900": "Grand Crossing",
+        "17031691000": "Grand Crossing",
+        "17031691100": "Grand Crossing",
+        "17031691200": "Grand Crossing",
+        "17031691300": "Grand Crossing",
+        "17031691400": "Grand Crossing",
+        "17031691500": "Grand Crossing",
+        "17031700100": "Ashburn",
+        "17031700200": "Ashburn",
+        "17031700301": "Ashburn",
+        "17031700302": "Ashburn",
+        "17031700401": "Ashburn",
+        "17031700402": "Ashburn",
+        "17031700501": "Ashburn",
+        "17031700502": "Ashburn",
+        "17031710100": "Auburn Gresham",
+        "17031710200": "Auburn Gresham",
+        "17031710300": "Auburn Gresham",
+        "17031710400": "Auburn Gresham",
+        "17031710500": "Auburn Gresham",
+        "17031710600": "Auburn Gresham",
+        "17031710700": "Auburn Gresham",
+        "17031710800": "Auburn Gresham",
+        "17031710900": "Auburn Gresham",
+        "17031711000": "Auburn Gresham",
+        "17031711100": "Auburn Gresham",
+        "17031711200": "Auburn Gresham",
+        "17031711300": "Auburn Gresham",
+        "17031711400": "Auburn Gresham",
+        "17031711500": "Auburn Gresham",
+        "17031720100": "Beverly",
+        "17031720200": "Beverly",
+        "17031720300": "Beverly",
+        "17031720400": "Beverly",
+        "17031720500": "Beverly",
+        "17031720600": "Beverly",
+        "17031720700": "Beverly",
+        "17031730100": "Washington Heights",
+        "17031730201": "Washington Heights",
+        "17031730202": "Washington Heights",
+        "17031730300": "Washington Heights",
+        "17031730400": "Washington Heights",
+        "17031730500": "Washington Heights",
+        "17031730600": "Washington Heights",
+        "17031730700": "Washington Heights",
+        "17031740100": "Mount Greenwood",
+        "17031740200": "Mount Greenwood",
+        "17031740300": "Mount Greenwood",
+        "17031740400": "Mount Greenwood",
+        "17031750100": "Morgan Park",
+        "17031750200": "Morgan Park",
+        "17031750300": "Morgan Park",
+        "17031750400": "Morgan Park",
+        "17031750500": "Morgan Park",
+        "17031750600": "Morgan Park",
+        "17031760801": "O'Hare",
+        "17031760802": "O'Hare",
+        "17031760803": "O'Hare",
+        "17031821402": null,
+        "17031823304": null,
+        "17031830500": "Little Village",
+        "17031830600": "Rogers Park",
+        "17031830700": "Uptown",
+        "17031830800": "Lincoln Square",
+        "17031830900": "Bucktown",
+        "17031831000": "Bucktown",
+        "17031831100": "Avondale",
+        "17031831200": "Hermosa",
+        "17031831300": "Austin",
+        "17031831400": "Austin",
+        "17031831500": "Belmont Cragin",
+        "17031831600": "Montclare",
+        "17031831700": "Portage Park",
+        "17031831800": "North Park",
+        "17031831900": "Lake View",
+        "17031832000": "Wrigleyville",
+        "17031832100": "Lake View",
+        "17031832200": "Bucktown",
+        "17031832300": "Bucktown",
+        "17031832400": "Logan Square",
+        "17031832500": "Lincoln Park",
+        "17031832600": "Lincoln Park",
+        "17031832900": "Little Italy, UIC",
+        "17031833000": "West Loop",
+        "17031833100": "West Loop",
+        "17031833300": "Little Italy, UIC",
+        "17031833900": "South Chicago",
+        "17031834000": "Roseland",
+        "17031834200": "South Shore",
+        "17031834300": "Avalon Park",
+        "17031834400": "Woodlawn",
+        "17031834500": "Washington Park",
+        "17031834600": "Englewood",
+        "17031834700": "Englewood",
+        "17031834800": "Englewood",
+        "17031834900": "Englewood",
+        "17031835000": "Chicago Lawn",
+        "17031835100": "Gage Park",
+        "17031835200": "Garfield Ridge",
+        "17031835500": "Fuller Park",
+        "17031835600": "Fuller Park",
+        "17031835700": "Grand Boulevard",
+        "17031835800": "Grand Boulevard",
+        "17031835900": "Grand Boulevard",
+        "17031836000": "Grand Boulevard",
+        "17031836100": "Washington Park",
+        "17031836200": "Hyde Park",
+        "17031836300": "Hyde Park",
+        "17031836400": "Oakland",
+        "17031836500": "Oakland",
+        "17031836600": "Humboldt Park",
+        "17031836700": "Humboldt Park",
+        "17031836800": "Garfield Park",
+        "17031836900": "Garfield Park",
+        "17031837000": "Garfield Park",
+        "17031837100": "Garfield Park",
+        "17031837300": "Garfield Park",
+        "17031837400": "Garfield Park",
+        "17031837800": "United Center",
+        "17031838000": "United Center",
+        "17031838100": "United Center",
+        "17031838200": "Little Italy, UIC",
+        "17031838300": "River North",
+        "17031838600": "North Lawndale",
+        "17031838700": "North Lawndale",
+        "17031838800": "South Deering",
+        "17031839000": "Loop",
+        "17031839100": "Loop",
+        "17031839200": "Douglas",
+        "17031839500": "Douglas",
+        "17031839600": "Douglas",
+        "17031839700": "Bridgeport",
+        "17031839800": "Bridgeport",
+        "17031839900": "Bridgeport",
+        "17031840000": "Bridgeport",
+        "17031840100": "Bridgeport",
+        "17031840200": "Bridgeport",
+        "17031840300": "Mckinley Park",
+        "17031840400": "Mckinley Park",
+        "17031840700": "Little Village",
+        "17031840800": "Little Village",
+        "17031841000": "Near South Side",
+        "17031841100": "Chinatown",
+        "17031841200": "Lower West Side",
+        "17031841300": "Lower West Side",
+        "17031841400": "North Lawndale",
+        "17031841500": "North Lawndale",
+        "17031841600": "North Lawndale",
+        "17031841700": "Little Village",
+        "17031841800": "Grand Crossing",
+        "17031841900": "West Loop",
+        "17031842000": "Douglas",
+        "17031842100": "Humboldt Park",
+        "17031842200": "River North",
+        "17031842300": "West Town",
+        "17031842400": "Chatham",
+        "17031842500": "Grand Crossing",
+        "17031842600": "New City",
+        "17031842800": "Brighton Park",
+        "17031842900": "Little Italy, UIC",
+        "17031843000": "North Lawndale",
+        "17031843100": "North Lawndale",
+        "17031843200": "Lower West Side",
+        "17031843300": "North Lawndale",
+        "17031843400": "North Lawndale",
+        "17031843500": "Little Village",
+        "17031843600": "Grand Boulevard",
+        "17031843700": "North Center",
+        "17031843800": "New City",
+        "17031843900": "Jackson Park"
+    };
+    const CSV_URL = 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/main/lookupdata.csv';
+    let lookupData = null;
+    let isLoadingCSV = true;
+    let csvLoadError = null;
+    /* CSV PARSER: Parses simple CSV text with support for quoted strings. */
+    function parseCSV(text) {
+        const lines = text.split(String.fromCharCode(10));
+        if (lines.length === 0) return {};
+        const headers = lines[0].split(',').map(function(h) { return h.trim(); });
+        const data = {};
+        lines.forEach(function(rawLine, lineIndex) {
+            if (lineIndex === 0) return;
+            const line = rawLine.trim();
+            if (!line) return;
+            const row = [];
+            let inQuotes = false;
+            let cell = "";
+            line.split('').forEach(function(char) {
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',') {
+                    if (!inQuotes) {
+                        row.push(cell.trim());
+                        cell = "";
+                    } else {
+                        cell += char;
+                    }
+                } else {
+                    cell += char;
+                }
+            });
+            row.push(cell.trim());
+            if (Math.sign(row.length - headers.length) !== -1) {
+                const rowData = {};
+                headers.forEach(function(header, index) {
+                    rowData[header] = row[index];
+                });
+                const key = rowData['tractFIPS_left'];
+                if (key) {
+                    data[key.trim()] = rowData;
+                }
+            }
+        });
+        return data;
     }
-
-    /**
-     * JSONP CALLBACK HANDLER
-     * This function is called automatically when the Census Bureau response arrives.
-     */
+    /* FETCH LOOKUP DATA: Loads lookupdata.csv from the main repository. */
+    async function initCSVData() {
+        try {
+            const response = await fetch(CSV_URL);
+            if (!response.ok) {
+                throw new Error("HTTP error! status: " + response.status);
+            }
+            const text = await response.text();
+            lookupData = parseCSV(text);
+            isLoadingCSV = false;
+        } catch (e) {
+            console.error("Failed to load lookup data:", e);
+            csvLoadError = "Failed to load census tract database. Please refresh or try again later.";
+            isLoadingCSV = false;
+        }
+    }
+    initCSVData();
+    /* JSONP CALLBACK HANDLER: Called automatically when the Census Bureau response arrives. */
     window.censusCallback = function(data) {
         const loader = document.getElementById('loader');
         const btn = document.getElementById('search-btn');
-
         loader.classList.add('hidden');
         btn.disabled = false;
-
-        if (data.result.addressMatches && data.result.addressMatches.length > 0) {
-            const match = data.result.addressMatches[0];
-            const tracts = match.geographies["Census Tracts"];
-            
-            if (tracts && tracts.length > 0) {
-                const geoid = tracts[0].GEOID;
-                displayResults(geoid);
-            } else {
-                showError("Found the address, but couldn't identify the Census Tract.");
+        let found = false;
+        if (data.result.addressMatches) {
+            if (data.result.addressMatches.length !== 0) {
+                const match = data.result.addressMatches[0];
+                const tracts = match.geographies["Census Tracts"];
+                if (tracts) {
+                    if (tracts.length !== 0) {
+                        const geoid = tracts[0].GEOID;
+                        displayResults(geoid);
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    showError("Found the address, but couldn't identify the Census Tract.");
+                    found = true;
+                }
             }
-        } else {
-            showError("We couldn't find that address. Please try adding 'Chicago, IL' to the end.");
         }
-
-        // Cleanup the script tag we added
+        if (!found) {
+            showError("We couldn't find that address.");
+        }
         const oldScript = document.getElementById('census-script');
         if (oldScript) oldScript.remove();
     };
-
     function lookupAddress() {
+        if (isLoadingCSV) {
+            showError("Still loading census tract database. Please wait a moment and try again.");
+            return;
+        }
+        if (csvLoadError) {
+            showError(csvLoadError);
+            return;
+        }
         const input = document.getElementById('address-input').value;
         const btn = document.getElementById('search-btn');
         const loader = document.getElementById('loader');
         const results = document.getElementById('results-area');
         const error = document.getElementById('error-msg');
-
         if (!input) return;
-
-        // Reset UI
         error.classList.add('hidden');
         results.classList.add('hidden');
         loader.classList.remove('hidden');
         btn.disabled = true;
-
-        /**
-         * FIX: Using JSONP because Census API doesn't support CORS.
-         * We inject a <script> tag which bypasses the CORS security block.
-         */
+        /* Using JSONP because Census API doesn't support CORS. Ampersands constructed using String.fromCharCode(38) to avoid WordPress escaping them. */
+        const amp = String.fromCharCode(38);
         const script = document.createElement('script');
         script.id = 'census-script';
-        script.src = `https://geocoding.geo.census.gov/geocoder/geographies/address?street=${encodeURIComponent(input)}&city=Chicago&state=IL&benchmark=Public_AR_Current&vintage=Current_Current&format=jsonp&callback=censusCallback`;
-        
-        // Handle loading errors (e.g. timeout or server down)
+        script.src = "https://geocoding.geo.census.gov/geocoder/geographies/address?street=" + encodeURIComponent(input) + 
+            amp + "city=Chicago" + 
+            amp + "state=IL" + 
+            amp + "benchmark=Public_AR_Current" + 
+            amp + "vintage=Census2010_Current" + 
+            amp + "format=jsonp" + 
+            amp + "callback=censusCallback";
         script.onerror = function() {
             showError("There was a connection error. Please try again later.");
             loader.classList.add('hidden');
             btn.disabled = false;
         };
-
         document.body.appendChild(script);
     }
-
+    /* FORMAT SENTENCE: Formats percentages to 1 decimal place and normalizes text structure. */
+    function formatSentence(str, prefix, replaceOthers) {
+        if (!str) return "";
+        const decimalPattern = new RegExp("([0-9]+[.][0-9]+)", "g");
+        let formatted = str.replace(decimalPattern, function(match) {
+            return parseFloat(match).toFixed(1);
+        });
+        const replacePattern = new RegExp("of other census tracts", "gi");
+        if (replaceOthers) {
+            formatted = formatted.replace(replacePattern, "of Census Tracts");
+        } else {
+            formatted = formatted.replace(replacePattern, "of other Census Tracts");
+        }
+        const whitespacePattern = new RegExp("[" + String.fromCharCode(32, 9, 13, 10) + "]+", "g");
+        formatted = formatted.replace(whitespacePattern, ' ').trim();
+        return prefix + " " + formatted + ".";
+    }
     function displayResults(geoid) {
         const results = document.getElementById('results-area');
-        const stats = getDummyData(geoid);
-
-        document.getElementById('val-tract').innerText = geoid;
-        document.getElementById('val-trees').innerText = stats.trees;
-        document.getElementById('val-canopy').innerText = stats.canopy;
-        document.getElementById('val-neighborhood').innerText = stats.neighborhood;
-
+        const error = document.getElementById('error-msg');
+        const tractData = lookupData[geoid];
+        if (!tractData) {
+            showError("This address is outside Chicago or data is not available for this tract.");
+            results.classList.add('hidden');
+            return;
+        }
+        error.classList.add('hidden');
+        const neighborhoodName = NEIGHBORHOOD_MAP[geoid] || "Unknown Neighborhood";
+        document.getElementById('val-neighborhood').innerText = neighborhoodName;
+        const canopyRaw = parseFloat(tractData.pcanopy);
+        if (!isNaN(canopyRaw)) {
+            document.getElementById('val-canopy').innerText = canopyRaw.toFixed(1) + "%";
+            document.getElementById('val-canopy-desc').innerText = ". " + formatSentence(tractData['canopy sentence'], "That's", true);
+        } else {
+            document.getElementById('val-canopy').innerText = "-";
+            document.getElementById('val-canopy-desc').innerText = "";
+        }
+        const priorityRaw = tractData['priority category'] || "-";
+        const priorityClean = priorityRaw.trim();
+        document.getElementById('val-priority').innerText = priorityClean ? (priorityClean.charAt(0).toUpperCase() + priorityClean.slice(1)) : "-";
+        const requestsVal = tractData['requests'];
+        if (requestsVal !== undefined) {
+            if (requestsVal !== "") {
+                document.getElementById('val-requests').innerText = requestsVal;
+                document.getElementById('val-requests-desc').innerText = ". " + formatSentence(tractData['requests sentence'], "That's", true);
+            } else {
+                document.getElementById('val-requests').innerText = "-";
+                document.getElementById('val-requests-desc').innerText = "";
+            }
+        } else {
+            document.getElementById('val-requests').innerText = "-";
+            document.getElementById('val-requests-desc').innerText = "";
+        }
+        const treesVal = tractData['SUM of Qty'];
+        if (treesVal !== undefined) {
+            if (treesVal !== "") {
+                document.getElementById('val-trees').innerText = treesVal;
+                document.getElementById('val-trees-desc').innerText = ". " + formatSentence(tractData['tree planting sentence'], "This is", false);
+            } else {
+                document.getElementById('val-trees').innerText = "-";
+                document.getElementById('val-trees-desc').innerText = "";
+            }
+        } else {
+            document.getElementById('val-trees').innerText = "-";
+            document.getElementById('val-trees-desc').innerText = "";
+        }
+        document.getElementById('val-tract-note').innerText = geoid;
         results.classList.remove('hidden');
     }
-
     function showError(msg) {
         const error = document.getElementById('error-msg');
         error.innerText = msg;
         error.classList.remove('hidden');
     }
-
     document.getElementById("address-input").addEventListener("keypress", function(event) {
         if (event.key === "Enter") {
             event.preventDefault();
