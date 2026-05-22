@@ -84,7 +84,7 @@
 #chi-trees__title {
   position: absolute;
   top: 8%;
-  right: 3%;
+  left: 55%;
   z-index: 500;
   color: #fff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -92,7 +92,7 @@
   font-weight: bold;
   line-height: 1.2;
   max-width: clamp(130px, 33vw, 230px);
-  text-align: right;
+  text-align: left;
 }
 
 /* ── HUD: date label ──────────────────────────────────────────────────── */
@@ -210,7 +210,7 @@
   var PULSE_SCALE = 1.5;     // peak radius multiplier during pulse
 
   // Chicago bounds, extended east into the lake (leaves room for title)
-  var BOUNDS = L.latLngBounds([41.61, -87.97], [42.07, -87.36]);
+  var BOUNDS = L.latLngBounds([41.61, -87.97], [42.07, -87.15]);
 
   // ── Map setup ─────────────────────────────────────────────────────────────
   var map = L.map('chi-trees__map', {
