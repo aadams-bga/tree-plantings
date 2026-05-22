@@ -1,0 +1,441 @@
+<!-- Chicago Tree Plantings Animation
+     ─────────────────────────────────────────────────────────────────────────
+     WORDPRESS SETUP:
+       1. Upload planting_latlong.csv to your Media Library and copy its URL
+       2. Paste the full URL into CSV_URL below (search for "UPDATE THIS")
+       3. Paste this entire file into a Custom HTML block
+       4. To test locally: run `python3 -m http.server` in this folder,
+          then open http://localhost:8000/tree_animation.html
+     ─────────────────────────────────────────────────────────────────────────
+-->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<div id="chi-trees">
+  <div id="chi-trees__map"></div>
+  <canvas id="chi-trees__accum"></canvas>
+  <canvas id="chi-trees__flash"></canvas>
+
+  <div id="chi-trees__title">Almost 70,000<br>trees planted<br>around Chicago</div>
+
+  <div id="chi-trees__hud">
+    <div id="chi-trees__date">Loading&hellip;</div>
+  </div>
+
+  <div id="chi-trees__controls">
+    <button id="chi-trees__play" aria-label="Play or pause animation">
+      <svg id="chi-trees__icon" viewBox="0 0 10 12" width="10" height="12" fill="white">
+        <path id="chi-trees__path" d="M0,0 L10,6 L0,12 Z"/>
+      </svg>
+    </button>
+    <div id="chi-trees__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="chi-trees__fill"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Reset (scoped to component) ─────────────────────────────────────── */
+#chi-trees,
+#chi-trees * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Container ────────────────────────────────────────────────────────── */
+#chi-trees {
+  position: relative;
+  width: 100%;
+  height: 100vh;   /* fallback for browsers without svh support */
+  height: 100svh;
+  overflow: hidden;
+  background: #0d0d0d;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ── Map ──────────────────────────────────────────────────────────────── */
+#chi-trees__map {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Leaflet overrides */
+#chi-trees .leaflet-control-zoom        { display: none !important; }
+#chi-trees .leaflet-control-attribution {
+  font-size: 8px !important;
+  background: rgba(0,0,0,0.45) !important;
+  color: #555 !important;
+  padding: 2px 5px !important;
+}
+#chi-trees .leaflet-control-attribution a { color: #777 !important; }
+
+/* ── Dot canvases ─────────────────────────────────────────────────────── */
+#chi-trees__accum,
+#chi-trees__flash {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#chi-trees__accum { z-index: 400; }
+#chi-trees__flash { z-index: 401; opacity: 0; }
+
+/* ── Title (over Lake Michigan, top-right) ────────────────────────────── */
+#chi-trees__title {
+  position: absolute;
+  top: 8%;
+  right: 3%;
+  z-index: 500;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.05rem, 4.5vw, 1.9rem);
+  font-weight: bold;
+  line-height: 1.2;
+  max-width: clamp(130px, 33vw, 230px);
+  text-align: right;
+  text-shadow:
+    0 0 24px rgba(0,0,0,1),
+    0 0 12px rgba(0,0,0,0.9),
+    0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* ── HUD: date label ──────────────────────────────────────────────────── */
+#chi-trees__hud {
+  position: absolute;
+  bottom: 48px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 500;
+  pointer-events: none;
+}
+
+#chi-trees__date {
+  font-size: clamp(0.8rem, 2.5vw, 1rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.85);
+}
+
+/* ── Controls: play button + progress bar ────────────────────────────── */
+#chi-trees__controls {
+  position: absolute;
+  bottom: 14px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 500;
+}
+
+#chi-trees__play {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+#chi-trees__play:hover { background: rgba(255,255,255,0.2); }
+
+#chi-trees__track {
+  width: clamp(160px, 48vw, 290px);
+  height: 2px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+#chi-trees__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: rgba(255,255,255,0.75);
+  border-radius: 1px;
+}
+</style>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ── UPDATE THIS ──────────────────────────────────────────────────────────
+  // For local dev: 'planting_latlong.csv'
+  // For WordPress: paste the full media URL, e.g.
+  //   'https://yoursite.com/wp-content/uploads/2026/05/planting_latlong.csv'
+  var CSV_URL = 'planting_latlong.csv';
+  // ─────────────────────────────────────────────────────────────────────────
+
+  var STEP_MS   = 210;   // ms per month frame
+  var END_PAUSE = 2200;  // ms to hold at end before looping
+  var DOT_R     = 2;     // dot radius in px
+  var DOT_ALPHA = 0.68;  // opacity of accumulated dots (0–1)
+
+  // Chicago bounds, extended east into the lake (leaves room for title)
+  var BOUNDS = L.latLngBounds([41.61, -87.97], [42.07, -87.36]);
+
+  // ── Map setup ─────────────────────────────────────────────────────────────
+  var map = L.map('chi-trees__map', {
+    zoomControl:       false,
+    attributionControl: true,
+    dragging:          false,
+    touchZoom:         false,
+    scrollWheelZoom:   false,
+    doubleClickZoom:   false,
+    keyboard:          false,
+    boxZoom:           false,
+    tap:               false,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(map);
+
+  map.fitBounds(BOUNDS, { animate: false });
+
+  // ── Canvases ──────────────────────────────────────────────────────────────
+  var accumCanvas = document.getElementById('chi-trees__accum');
+  var flashCanvas = document.getElementById('chi-trees__flash');
+  var accumCtx    = accumCanvas.getContext('2d');
+  var flashCtx    = flashCanvas.getContext('2d');
+  var DPR = window.devicePixelRatio || 1;
+  var CW  = 0; // CSS width  (updated in resizeCanvases)
+  var CH  = 0; // CSS height
+
+  function resizeCanvases() {
+    CW = accumCanvas.offsetWidth;
+    CH = accumCanvas.offsetHeight;
+    accumCanvas.width  = CW * DPR; accumCanvas.height = CH * DPR;
+    flashCanvas.width  = CW * DPR; flashCanvas.height = CH * DPR;
+    // ctx.scale resets when canvas dimensions are set, so always reapply
+    accumCtx.scale(DPR, DPR);
+    flashCtx.scale(DPR, DPR);
+  }
+  resizeCanvases();
+
+  // ── Date parsing (handles M/D/YYYY and MM.DD.YY) ──────────────────────────
+  function parseDate(s) {
+    if (!s) return null;
+    s = s.trim();
+    var parts, m, d, y;
+    if (s.indexOf('/') !== -1) {
+      parts = s.split('/');
+    } else if (s.indexOf('.') !== -1) {
+      parts = s.split('.');
+    } else {
+      return null;
+    }
+    if (parts.length !== 3) return null;
+    m = parseInt(parts[0], 10);
+    d = parseInt(parts[1], 10);
+    y = parseInt(parts[2], 10);
+    if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
+    if (y < 100) y += 2000;
+    return new Date(y, m - 1, d);
+  }
+
+  var MONTH_NAMES = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+
+  function monthLabel(date) {
+    return MONTH_NAMES[date.getMonth()] + ' ' + date.getFullYear();
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  var months  = [];   // [{key, date, label, rawPts:[{lat,lng}], px:[{x,y}]}]
+  var step    = 0;
+  var playing = true;
+  var timer   = null;
+
+  // ── UI elements ───────────────────────────────────────────────────────────
+  var dateEl  = document.getElementById('chi-trees__date');
+  var fillEl  = document.getElementById('chi-trees__fill');
+  var trackEl = document.getElementById('chi-trees__track');
+  var pathEl  = document.getElementById('chi-trees__path');
+
+  var PAUSE_D = 'M1,1 L3.5,1 L3.5,11 L1,11 Z M5.5,1 L8,1 L8,11 L5.5,11 Z';
+  var PLAY_D  = 'M1,0 L10,6 L1,12 Z';
+
+  function setIcon(isPlaying) {
+    pathEl.setAttribute('d', isPlaying ? PAUSE_D : PLAY_D);
+  }
+
+  document.getElementById('chi-trees__play').addEventListener('click', function () {
+    playing = !playing;
+    setIcon(playing);
+    if (playing) scheduleNext();
+    else { clearTimeout(timer); timer = null; }
+  });
+
+  // Click on progress bar to scrub
+  trackEl.addEventListener('click', function (e) {
+    if (!months.length) return;
+    var rect = trackEl.getBoundingClientRect();
+    var pct  = (e.clientX - rect.left) / rect.width;
+    var target = Math.max(0, Math.min(months.length - 1, Math.floor(pct * months.length)));
+    clearTimeout(timer); timer = null;
+    // Redraw up to target
+    step = target;
+    redrawUpTo(step);
+    updateHUD(step);
+    if (playing) scheduleNext();
+  });
+
+  // ── Pixel helpers ─────────────────────────────────────────────────────────
+  var TWO_PI = Math.PI * 2;
+
+  function computePixels() {
+    months.forEach(function (mo) {
+      mo.px = mo.rawPts.map(function (p) {
+        var pt = map.latLngToContainerPoint([p.lat, p.lng]);
+        return { x: Math.round(pt.x), y: Math.round(pt.y) };
+      });
+    });
+  }
+
+  function batchArcs(ctx, pts) {
+    var i, p;
+    for (i = 0; i < pts.length; i++) {
+      p = pts[i];
+      ctx.moveTo(p.x + DOT_R, p.y);
+      ctx.arc(p.x, p.y, DOT_R, 0, TWO_PI);
+    }
+  }
+
+  function redrawUpTo(upTo) {
+    accumCtx.clearRect(0, 0, CW, CH);
+    accumCtx.beginPath();
+    for (var i = 0; i <= upTo; i++) batchArcs(accumCtx, months[i].px);
+    accumCtx.fillStyle = 'rgba(255,255,255,' + DOT_ALPHA + ')';
+    accumCtx.fill();
+  }
+
+  function updateHUD(s) {
+    dateEl.textContent = months[s].label;
+    var pct = ((s + 1) / months.length * 100).toFixed(1);
+    fillEl.style.width = pct + '%';
+    trackEl.setAttribute('aria-valuenow', pct);
+  }
+
+  // ── Draw a single step ────────────────────────────────────────────────────
+  function drawStep(s) {
+    var pts = months[s].px;
+
+    // Add to permanent accumulation canvas
+    accumCtx.beginPath();
+    batchArcs(accumCtx, pts);
+    accumCtx.fillStyle = 'rgba(255,255,255,' + DOT_ALPHA + ')';
+    accumCtx.fill();
+
+    // Flash: paint new dots bright, then CSS-transition them out
+    flashCtx.clearRect(0, 0, CW, CH);
+    flashCtx.beginPath();
+    batchArcs(flashCtx, pts);
+    flashCtx.fillStyle = 'rgba(255,255,255,0.95)';
+    flashCtx.fill();
+
+    flashCanvas.style.transition = 'none';
+    flashCanvas.style.opacity = '1';
+    // Two rAFs ensure the browser paints the opacity=1 frame before transitioning
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        flashCanvas.style.transition = 'opacity 0.65s ease-out';
+        flashCanvas.style.opacity = '0';
+      });
+    });
+
+    updateHUD(s);
+  }
+
+  // ── Animation loop ────────────────────────────────────────────────────────
+  function scheduleNext() {
+    if (!playing) return;
+    var isLast = step === months.length - 1;
+    timer = setTimeout(function () {
+      if (!playing) return;
+      if (isLast) {
+        // Reset for loop
+        step = 0;
+        accumCtx.clearRect(0, 0, CW, CH);
+        flashCtx.clearRect(0, 0, CW, CH);
+        flashCanvas.style.opacity = '0';
+      } else {
+        step++;
+      }
+      drawStep(step);
+      scheduleNext();
+    }, isLast ? END_PAUSE : STEP_MS);
+  }
+
+  // ── Load CSV ──────────────────────────────────────────────────────────────
+  d3.csv(CSV_URL).then(function (rows) {
+    var byMonth = new Map();
+
+    rows.forEach(function (r) {
+      var lat = parseFloat(r.lat);
+      var lng = parseFloat(r.long);
+      if (isNaN(lat) || isNaN(lng) || !r.Date) return;
+      var date = parseDate(r.Date);
+      if (!date) return;
+      var key = date.getFullYear() * 12 + date.getMonth();
+      if (!byMonth.has(key)) {
+        byMonth.set(key, {
+          key:     key,
+          date:    date,
+          label:   monthLabel(date),
+          rawPts:  [],
+          px:      [],
+        });
+      }
+      byMonth.get(key).rawPts.push({ lat: lat, lng: lng });
+    });
+
+    months = Array.from(byMonth.values()).sort(function (a, b) { return a.key - b.key; });
+
+    map.whenReady(function () {
+      computePixels();
+      setIcon(true);
+      drawStep(0);
+      scheduleNext();
+    });
+
+  }).catch(function (err) {
+    console.error('chi-trees: could not load CSV –', err);
+    dateEl.textContent = 'Could not load data.';
+  });
+
+  // ── Responsive resize ─────────────────────────────────────────────────────
+  var resizeDebounce;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(function () {
+      resizeCanvases();
+      map.fitBounds(BOUNDS, { animate: false });
+      if (months.length) {
+        computePixels();
+        redrawUpTo(step);
+        updateHUD(step);
+      }
+    }, 160);
+  });
+
+}());
+</script>
