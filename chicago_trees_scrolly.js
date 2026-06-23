@@ -26,6 +26,7 @@
         gsap.registerPlugin(ScrollTrigger);
 
         // Define sequential color scales for the steps
+        const colorPriority = d3.scaleSequential(t => d3.interpolateYlOrRd(0.15 + t * 0.85)).domain([1, 804]);
         const colorCA = d3.scaleSequential(t => d3.interpolateGreens(0.15 + t * 0.85)).domain([0, 2800]);
         const colorTractPlant = d3.scaleSequential(t => d3.interpolateGreens(0.15 + t * 0.85)).domain([0, 600]);
         const colorRequests = d3.scaleSequential(t => d3.interpolateYlGnBu(0.15 + t * 0.85)).domain([0, 600]);
@@ -51,8 +52,10 @@
                 const fips = d.tractFIPS_left;
                 if (fips && fips !== 'Grand Total') {
                     const cleanFips = fips.trim();
-                    const priority = d['priority category'] ? d['priority category'].toLowerCase().trim() : '';
-                    priorityMap.set(cleanFips, priority);
+                    const prio = d.prio_rank ? +d.prio_rank : null;
+                    if (prio !== null && !isNaN(prio)) {
+                        priorityMap.set(cleanFips, prio);
+                    }
                     tractPlantMap.set(cleanFips, +d['SUM of Qty'] || 0);
                     reqsMap.set(cleanFips, +d.requests || 0);
                 }
@@ -173,21 +176,16 @@
                 else if (step === 1) {
                     // Step 1: Planting Priority. Fills are Yellow-Orange-Red, CAs hidden.
                     legendBox.style.opacity = 1;
-                    legendTitle.innerText = "Planting Priority Category";
+                    legendTitle.innerText = "Planting Priority Rank";
                     legendBar.style.background = "linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026)";
-                    legendMin.innerText = "Lowest";
-                    legendMax.innerText = "Highest";
+                    legendMin.innerText = "1 (Lowest)";
+                    legendMax.innerText = "804 (Highest)";
 
                     tracts.transition().duration(400)
                         .style('opacity', 1)
                         .style('fill', d => {
                             const val = priorityMap.get(d.properties.GEOID);
-                            if (val === 'highest') return '#bd0026';
-                            if (val === 'high') return '#f03b20';
-                            if (val === 'medium') return '#fd8d3c';
-                            if (val === 'low') return '#fecc5c';
-                            if (val === 'lowest') return '#ffffb2';
-                            return '#e2e8f0';
+                            return (val !== undefined && val !== null) ? colorPriority(val) : '#e2e8f0';
                         });
                     
                     cas.transition().duration(400)
