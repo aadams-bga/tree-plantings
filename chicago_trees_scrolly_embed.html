@@ -1,3 +1,335 @@
+<!-- Load required library scripts first to ensure they are available in the page context -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+<style>
+/* Chicago Tree Plantings Scrollytelling Styles */
+/* Scoped to root container to avoid styling leaks into the WordPress theme */
+
+#chicago-trees-scrolly-root {
+    --wp-body-font: "Halyard Text", "halyard-text", "Inter", Arial, sans-serif;
+    --wp-heading-font: "Halyard Display", "halyard-display", "Inter", Arial, sans-serif;
+    --wp-ui-font: "Inter", Arial, sans-serif;
+    
+    position: relative;
+    width: 100%;
+    background-color: #ffffff;
+    color: #333333;
+    margin: 20px auto 40px auto;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+#chicago-trees-scrolly-root *,
+#chicago-trees-scrolly-root *::before,
+#chicago-trees-scrolly-root *::after {
+    box-sizing: inherit;
+}
+
+/* Scrolly Layout Structure */
+#chicago-trees-scrolly-root .scrolly-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+#chicago-trees-scrolly-root .graphic-pane {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+    overflow: hidden;
+}
+
+#chicago-trees-scrolly-root .svg-shell {
+    width: 95%;
+    max-width: 800px;
+    height: auto;
+    max-height: 90vh;
+    aspect-ratio: 800 / 650;
+    position: relative;
+}
+
+#chicago-trees-scrolly-root svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Narrative Cards Column */
+#chicago-trees-scrolly-root .narrative-track {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    pointer-events: none; /* Let clicks/hovers pass through to maps if any */
+}
+
+#chicago-trees-scrolly-root .narrative-cards {
+    padding: 0 15px;
+    width: 100%;
+}
+
+#chicago-trees-scrolly-root .card {
+    background: rgba(255, 255, 255, 0.98);
+    padding: 30px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 100vh;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    pointer-events: all; /* Restore clicks on links/buttons inside cards */
+    position: relative;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    opacity: 0.15;
+    transform: translateY(15px);
+}
+
+#chicago-trees-scrolly-root .card.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#chicago-trees-scrolly-root .card:first-child {
+    margin-top: 25vh;
+}
+
+#chicago-trees-scrolly-root .card:last-child {
+    margin-bottom: 35vh;
+}
+
+/* Typography Rules */
+#chicago-trees-scrolly-root h3 {
+    font-family: var(--wp-heading-font);
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.25;
+    margin: 0 0 10px 0;
+    text-transform: none;
+    letter-spacing: -0.01em;
+}
+
+#chicago-trees-scrolly-root p {
+    font-family: var(--wp-body-font);
+    font-size: 15px;
+    line-height: 1.5;
+    color: #4a5568;
+    margin: 0;
+}
+
+/* Legend Box styling */
+#chicago-trees-scrolly-root .legend-box {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-family: var(--wp-ui-font);
+    font-size: 12px;
+    z-index: 10;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    opacity: 0;
+    width: 200px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+#chicago-trees-scrolly-root .legend-title {
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 6px;
+    line-height: 1.2;
+}
+
+#chicago-trees-scrolly-root .legend-bar {
+    height: 10px;
+    width: 100%;
+    border-radius: 1px;
+    margin-bottom: 5px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+#chicago-trees-scrolly-root .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    color: #718096;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+/* Path transitions */
+#chicago-trees-scrolly-root .tract-path {
+    stroke: #ffffff;
+    stroke-width: 0.2px;
+}
+
+#chicago-trees-scrolly-root .ca-path {
+    stroke: #ffffff;
+    stroke-width: 0.8px;
+}
+
+/* Loading Indicator */
+#chicago-trees-scrolly-root .map-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--wp-ui-font);
+    font-size: 14px;
+    color: #718096;
+    font-weight: 500;
+    z-index: 5;
+}
+
+/* Desktop layout breakpoint */
+@media (min-width: 1024px) {
+    #chicago-trees-scrolly-root .scrolly-wrapper {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: flex-start;
+    }
+
+    #chicago-trees-scrolly-root .graphic-pane {
+        position: sticky;
+        top: 80px; /* Offset for WordPress header */
+        width: 60%;
+        height: calc(100vh - 80px);
+    }
+
+    #chicago-trees-scrolly-root .narrative-track {
+        width: 40%;
+    }
+
+    #chicago-trees-scrolly-root .narrative-cards {
+        padding-left: 40px;
+        padding-right: 20px;
+    }
+
+    #chicago-trees-scrolly-root .card {
+        max-width: 460px;
+    }
+}
+
+/* Mobile layout breakpoint */
+@media (max-width: 1023px) {
+    #chicago-trees-scrolly-root.scrolly-in-view .graphic-pane {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        height: 45vh; /* Graphic pins to bottom 45% of screen */
+        width: 100%;
+        z-index: 999;
+        background-color: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    #chicago-trees-scrolly-root .svg-shell {
+        max-height: 40vh;
+        aspect-ratio: 800 / 650;
+    }
+
+    #chicago-trees-scrolly-root .narrative-track {
+        position: relative;
+        z-index: 5;
+        pointer-events: all;
+    }
+
+    #chicago-trees-scrolly-root .narrative-cards {
+        max-width: 480px;
+        margin: 0 auto;
+        padding-top: 20px;
+        padding-bottom: 25vh;
+    }
+
+    #chicago-trees-scrolly-root .card {
+        margin-bottom: 75vh;
+        background-color: #ffffff;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    #chicago-trees-scrolly-root .card:first-child {
+        margin-top: 5vh;
+    }
+
+    #chicago-trees-scrolly-root .card:last-child {
+        margin-bottom: 15vh;
+    }
+
+    #chicago-trees-scrolly-root .legend-box {
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.95);
+    }
+}
+</style>
+
+<div id="chicago-trees-scrolly-root">
+    <div class="scrolly-wrapper">
+        <!-- Sticky Graphic Pane -->
+        <div class="graphic-pane">
+            <!-- Dynamic Legend Box -->
+            <div class="legend-box" id="scrolly-legend">
+                <div class="legend-title" id="legend-title">Legend</div>
+                <div class="legend-bar" id="legend-bar"></div>
+                <div class="legend-labels">
+                    <span id="legend-min">0</span>
+                    <span id="legend-max">100</span>
+                </div>
+            </div>
+
+            <!-- Loader -->
+            <div class="map-loader" id="map-loader">Loading map datasets...</div>
+
+            <!-- SVG Shell -->
+            <div class="svg-shell">
+                <svg id="scrolly-svg" viewBox="0 0 800 650" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+        </div>
+
+        <!-- Scroll Narrative Column -->
+        <div class="narrative-track">
+            <div class="narrative-cards">
+                <!-- Intro Card (Step 0) -->
+                <div class="card active" data-step="0">
+                    <h3>While thousands of trees were planted on the South and West Sides, the city’s tree coverage remains patchy. </h3>
+                    <p></p>
+                </div>
+
+                <!-- Step 1: Priority -->
+                <div class="card" data-step="1">
+                    <h3>Planting Priority</h3>
+                    <p>Morton Arboretum mapped the need for trees across the city based on the existing tree canopy, social determinants of health like poverty and minority status, rates of asthma, air quality, flooding frequency, and average temperatures.</p>
+                </div>
+
+                <!-- Step 2: CA Plantings -->
+                <div class="card" data-step="2">
+                    <h3>Plantings by Community Area</h3>
+                    <p>The city's five-year effort to plant trees has resulted in more densely grouped plantings on the South and West Sides.</p>
+                </div>
+
+                <!-- Step 3: Tract Plantings -->
+                <div class="card" data-step="3">
+                    <h3>Plantings by Census Tract</h3>
+                    <p>But more granular data reveals an inconsistent mosaic of plantings, with some blocks almost entirely ignored - even areas that the city knows are the highest priority for new tree plantings.</p>
+                </div>
+
+                <!-- Step 4: Requests -->
+                <div class="card" data-step="4">
+                    <h3>Tree Requests by Census Tract</h3>
+                    <p>This is at least partially due to the city's request-based system. The patchwork request system drives a patchwork system of plantings.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
 // Chicago Tree Plantings Scrollytelling Map Interaction Logic
 // Scoped IIFE to prevent global variable leakage and namespace pollution in WordPress
 (function() {
@@ -314,3 +646,4 @@
         checkDependencies();
     }
 })();
+</script>
