@@ -928,7 +928,6 @@
     let lookupData = null;
     let isLoadingCSV = true;
     let csvLoadError = null;
-    /* CSV PARSER: Parses simple CSV text with support for quoted strings. */
     function parseCSV(text) {
         const lines = text.split(String.fromCharCode(10));
         if (lines.length === 0) return {};
@@ -969,7 +968,6 @@
         });
         return data;
     }
-    /* FETCH LOOKUP DATA: Loads lookupdata.csv from the main repository. */
     async function initCSVData() {
         try {
             const response = await fetch(CSV_URL);
@@ -986,7 +984,6 @@
         }
     }
     initCSVData();
-    /* JSONP CALLBACK HANDLER: Called automatically when the Census Bureau response arrives. */
     window.censusCallback = function(data) {
         const loader = document.getElementById('loader');
         const btn = document.getElementById('search-btn');
@@ -1035,7 +1032,6 @@
         results.classList.add('hidden');
         loader.classList.remove('hidden');
         btn.disabled = true;
-        /* Using JSONP because Census API doesn't support CORS. Ampersands constructed using String.fromCharCode(38) to avoid WordPress escaping them. */
         const amp = String.fromCharCode(38);
         const script = document.createElement('script');
         script.id = 'census-script';
@@ -1053,7 +1049,6 @@
         };
         document.body.appendChild(script);
     }
-    /* FORMAT SENTENCE: Formats percentages to 1 decimal place and normalizes text structure. */
     function formatSentence(str, prefix, replaceOthers) {
         if (!str) return "";
         const decimalPattern = new RegExp("([0-9]+[.][0-9]+)", "g");

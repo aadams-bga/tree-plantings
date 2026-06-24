@@ -1,12 +1,8 @@
-<!-- Load required library scripts first to ensure they are available in the page context -->
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 
 <style>
-/* Chicago Tree Plantings Scrollytelling Styles */
-/* Scoped to root container to avoid styling leaks into the WordPress theme */
-
 #chicago-trees-scrolly-root {
     --wp-body-font: "Halyard Text", "halyard-text", "Inter", Arial, sans-serif;
     --wp-heading-font: "Halyard Display", "halyard-display", "Inter", Arial, sans-serif;
@@ -27,7 +23,6 @@
     box-sizing: inherit;
 }
 
-/* Scrolly Layout Structure */
 #chicago-trees-scrolly-root .scrolly-wrapper {
     position: relative;
     width: 100%;
@@ -60,12 +55,11 @@
     display: block;
 }
 
-/* Narrative Cards Column */
 #chicago-trees-scrolly-root .narrative-track {
     position: relative;
     z-index: 2;
     width: 100%;
-    pointer-events: none; /* Let clicks/hovers pass through to maps if any */
+    pointer-events: none; 
 }
 
 #chicago-trees-scrolly-root .narrative-cards {
@@ -162,7 +156,6 @@
     font-size: 11px;
 }
 
-/* Path transitions */
 #chicago-trees-scrolly-root .tract-path {
     stroke: #ffffff;
     stroke-width: 0.2px;
@@ -173,7 +166,6 @@
     stroke-width: 0.8px;
 }
 
-/* Loading Indicator */
 #chicago-trees-scrolly-root .map-loader {
     position: absolute;
     top: 50%;
@@ -186,7 +178,6 @@
     z-index: 5;
 }
 
-/* Desktop layout breakpoint */
 @media (min-width: 1024px) {
     #chicago-trees-scrolly-root .scrolly-wrapper {
         display: flex;
@@ -196,7 +187,7 @@
 
     #chicago-trees-scrolly-root .graphic-pane {
         position: sticky;
-        top: 80px; /* Offset for WordPress header */
+        top: 150px;  /*header offset */
         width: 60%;
         height: calc(100vh - 80px);
     }
@@ -215,13 +206,12 @@
     }
 }
 
-/* Mobile layout breakpoint */
 @media (max-width: 1023px) {
     #chicago-trees-scrolly-root.scrolly-in-view .graphic-pane {
         position: fixed;
         bottom: 0;
         left: 0;
-        height: 45vh; /* Graphic pins to bottom 45% of screen */
+        height: 45vh; 
         width: 100%;
         z-index: 999;
         background-color: #ffffff;
@@ -271,9 +261,7 @@
 
 <div id="chicago-trees-scrolly-root">
     <div class="scrolly-wrapper">
-        <!-- Sticky Graphic Pane -->
         <div class="graphic-pane">
-            <!-- Dynamic Legend Box -->
             <div class="legend-box" id="scrolly-legend">
                 <div class="legend-title" id="legend-title">Legend</div>
                 <div class="legend-bar" id="legend-bar"></div>
@@ -283,43 +271,35 @@
                 </div>
             </div>
 
-            <!-- Loader -->
             <div class="map-loader" id="map-loader">Loading map datasets...</div>
 
-            <!-- SVG Shell -->
             <div class="svg-shell">
                 <svg id="scrolly-svg" viewBox="0 0 800 650" preserveAspectRatio="xMidYMid meet"></svg>
             </div>
         </div>
 
-        <!-- Scroll Narrative Column -->
         <div class="narrative-track">
             <div class="narrative-cards">
-                <!-- Intro Card (Step 0) -->
                 <div class="card active" data-step="0">
                     <h3>While thousands of trees were planted on the South and West Sides, the city’s tree coverage remains patchy. </h3>
                     <p></p>
                 </div>
 
-                <!-- Step 1: Priority -->
                 <div class="card" data-step="1">
                     <h3>Planting Priority</h3>
                     <p>Morton Arboretum mapped the need for trees across the city based on the existing tree canopy, social determinants of health like poverty and minority status, rates of asthma, air quality, flooding frequency, and average temperatures.</p>
                 </div>
 
-                <!-- Step 2: CA Plantings -->
                 <div class="card" data-step="2">
                     <h3>Plantings by Community Area</h3>
                     <p>The city's five-year effort to plant trees has resulted in more densely grouped plantings on the South and West Sides.</p>
                 </div>
 
-                <!-- Step 3: Tract Plantings -->
                 <div class="card" data-step="3">
                     <h3>Plantings by Census Tract</h3>
                     <p>But more granular data reveals an inconsistent mosaic of plantings, with some blocks almost entirely ignored - even areas that the city knows are the highest priority for new tree plantings.</p>
                 </div>
 
-                <!-- Step 4: Requests -->
                 <div class="card" data-step="4">
                     <h3>Tree Requests by Census Tract</h3>
                     <p>This is at least partially due to the city's request-based system. The patchwork request system drives a patchwork system of plantings.</p>
@@ -330,8 +310,6 @@
 </div>
 
 <script>
-// Chicago Tree Plantings Scrollytelling Map Interaction Logic
-// Scoped IIFE to prevent global variable leakage and namespace pollution in WordPress
 (function() {
     // Protocol-aware relative vs raw GitHub path resolution
     const isLocal = window.location.hostname === 'localhost' || 
@@ -354,32 +332,26 @@
 
         let activeStep = 0;
 
-        // Register ScrollTrigger plugin with GSAP
         gsap.registerPlugin(ScrollTrigger);
 
-        // Define sequential color scales for the steps
         const colorPriority = d3.scaleSequential(t => d3.interpolateYlOrRd(0.15 + t * 0.85)).domain([1, 804]);
         const colorCA = d3.scaleSequential(t => d3.interpolateGreens(0.15 + t * 0.85)).domain([0, 2800]);
         const colorTractPlant = d3.scaleSequential(t => d3.interpolateGreens(0.15 + t * 0.85)).domain([0, 600]);
         const colorRequests = d3.scaleSequential(t => d3.interpolateYlGnBu(0.15 + t * 0.85)).domain([0, 600]);
 
-        // Maps to hold lookups
         const priorityMap = new Map();
         const tractPlantMap = new Map();
         const reqsMap = new Map();
         const caPlantMap = new Map();
 
-        // Load all datasets concurrently
         Promise.all([
             d3.json(BASE_URL + '2010tracts.geojson' + cacheBuster),
             d3.json(BASE_URL + 'communityArea.geojson' + cacheBuster),
             d3.csv(BASE_URL + 'lookupdata.csv' + cacheBuster),
             d3.csv(BASE_URL + 'plantingsByComArea.csv' + cacheBuster)
         ]).then(([tractsGeo, caGeo, lookupCsv, caPlantCsv]) => {
-            // Hide loading indicator
             d3.select(root.querySelector('#map-loader')).style('display', 'none');
 
-            // Parse census tract data from consolidated lookupdata.csv
             lookupCsv.forEach(d => {
                 const fips = d.tractFIPS_left;
                 if (fips && fips !== 'Grand Total') {
@@ -393,15 +365,12 @@
                 }
             });
 
-            // Parse community area plantings
             caPlantCsv.forEach(d => {
                 if (d.CA && d.CA !== 'Grand Total') {
                     caPlantMap.set(d.CA.toUpperCase().trim(), +d.trees || 0);
                 }
             });
 
-            // Boundary validation helper checking if coordinates lie in Chicago degrees space
-            // Avoids literal comparison operators LESS THAN and GREATER THAN to protect WordPress Custom HTML rendering
             function isValidChicagoWGS84(feature, isTract) {
                 try {
                     const bounds = d3.geoBounds(feature);
@@ -411,18 +380,13 @@
                         !isFinite(minLon) || !isFinite(minLat) || !isFinite(maxLon) || !isFinite(maxLat)) {
                         return false;
                     }
-                    
-                    // minLon greater than -88.5 -> Math.sign(minLon + 88.5) === 1
-                    // maxLon less than -87.0 -> Math.sign(maxLon + 87.0) === -1
-                    // minLat greater than 41.0  -> Math.sign(minLat - 41.0) === 1
-                    // maxLat less than 42.5  -> Math.sign(maxLat - 42.5) === -1
+
                     const inChicago = Math.sign(minLon + 88.5) === 1 && 
                                       Math.sign(maxLon + 87.0) === -1 && 
                                       Math.sign(minLat - 41.0) === 1 && 
                                       Math.sign(maxLat - 42.5) === -1;
                     
                     const maxSpan = isTract ? 0.15 : 0.3;
-                    // span less than maxSpan -> Math.sign(span - maxSpan) === -1
                     const isNormalSize = Math.sign((maxLon - minLon) - maxSpan) === -1 && 
                                          Math.sign((maxLat - minLat) - maxSpan) === -1;
                     
@@ -432,10 +396,8 @@
                 }
             }
 
-            // Filter out invalid/Cartesian community area shapes
             caGeo.features = caGeo.features.filter(f => isValidChicagoWGS84(f, false));
 
-            // Standardize tract GEOID properties and filter to valid Chicago tracts
             tractsGeo.features.forEach(f => {
                 if (f.properties) {
                     f.properties.GEOID = f.properties.GEOID || f.properties.FIPS || f.properties.geoid10 || f.properties.GEOID10;
@@ -449,7 +411,6 @@
                 isValidChicagoWGS84(f, true)
             );
 
-            // Fit projection to main city community areas (excluding O'Hare to keep visual zoomed in)
             const mainCityCAs = {
                 type: "FeatureCollection",
                 features: caGeo.features.filter(f => f.properties.community && f.properties.community.toUpperCase().trim() !== 'OHARE')
@@ -458,11 +419,9 @@
             const projection = d3.geoMercator().fitExtent([[10, 10], [790, 640]], mainCityCAs);
             const pathGenerator = d3.geoPath().projection(projection);
 
-            // Render Map layers (tracts group first, community areas second)
             const gTracts = svg.append('g').attr('id', 'g-tracts');
             const gCA = svg.append('g').attr('id', 'g-ca');
 
-            // Draw tracts paths
             const tracts = gTracts.selectAll('.tract-path')
                 .data(tractsGeo.features)
                 .enter()
@@ -473,7 +432,6 @@
                 .attr('stroke', '#ffffff')
                 .attr('stroke-width', '0.2px');
 
-            // Draw community areas paths (initially transparent)
             const cas = gCA.selectAll('.ca-path')
                 .data(caGeo.features)
                 .enter()
@@ -485,17 +443,14 @@
                 .attr('stroke-width', '0.8px')
                 .style('opacity', 0);
 
-            // Map State Transitions
             function transitionTo(step) {
                 activeStep = step;
                 
-                // Toggle active styles on cards
                 cards.forEach((card, idx) => {
                     card.classList.toggle('active', idx === step);
                 });
 
                 if (step === 0) {
-                    // Step 0: Intro. Fills are neutral gray, CAs are hidden.
                     legendBox.style.opacity = 0;
                     
                     tracts.transition().duration(400)
@@ -506,7 +461,6 @@
                         .style('opacity', 0);
                 } 
                 else if (step === 1) {
-                    // Step 1: Planting Priority. Fills are Yellow-Orange-Red, CAs hidden.
                     legendBox.style.opacity = 1;
                     legendTitle.innerText = "Planting Priority Rank";
                     legendBar.style.background = "linear-gradient(to right, #ffffb2, #fecc5c, #fd8d3c, #f03b20, #bd0026)";
@@ -524,7 +478,6 @@
                         .style('opacity', 0);
                 } 
                 else if (step === 2) {
-                    // Step 2: Community Area Plantings. CAs visible (colored), tracts faded.
                     legendBox.style.opacity = 1;
                     legendTitle.innerText = "Trees Planted (CA)";
                     legendBar.style.background = "linear-gradient(to right, #e5f5e0, #a1d99b, #31a354, #006d2c)";
@@ -544,7 +497,6 @@
                         });
                 } 
                 else if (step === 3) {
-                    // Step 3: Census Tract Plantings. Tracts colored (Forest Greens), CAs hidden.
                     legendBox.style.opacity = 1;
                     legendTitle.innerText = "Trees Planted (Tract)";
                     legendBar.style.background = "linear-gradient(to right, #e5f5e0, #a1d99b, #31a354, #006d2c)";
@@ -562,7 +514,6 @@
                         });
                 } 
                 else if (step === 4) {
-                    // Step 4: Census Tract Requests. Tracts colored (Teals/Blues), CAs hidden.
                     legendBox.style.opacity = 1;
                     legendTitle.innerText = "Tree Requests (Tract)";
                     legendBar.style.background = "linear-gradient(to right, #ffffcc, #7fcdbb, #41b6c4, #1d91c0, #081d58)";
@@ -581,10 +532,7 @@
                 }
             }
 
-            // Scroll activation
-            // width less than 1024 -> Math.sign(width - 1024) === -1
             if (Math.sign(window.innerWidth - 1024) === -1) {
-                // Mobile layout: IntersectionObserver transitions
                 const wrapper = root.querySelector('.scrolly-wrapper');
                 const viewObserver = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
@@ -607,7 +555,6 @@
                 }, { root: null, rootMargin: "-35% 0px -64% 0px" });
                 cards.forEach(card => cardObserver.observe(card));
             } else {
-                // Desktop layout: GSAP ScrollTrigger steps
                 cards.forEach((card, index) => {
                     ScrollTrigger.create({
                         trigger: card,
@@ -621,7 +568,6 @@
                 ScrollTrigger.refresh();
             }
 
-            // Set initial state
             transitionTo(0);
         }).catch(err => {
             console.error("Error loading scrollytelling datasets:", err);
@@ -631,7 +577,6 @@
         });
     }
 
-    // Dependency safety check loop
     function checkDependencies() {
         if (window.d3 && window.gsap && window.ScrollTrigger && document.querySelector('#chicago-trees-scrolly-root')) {
             initVisual();

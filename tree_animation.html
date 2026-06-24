@@ -1,13 +1,4 @@
-<!-- Chicago Tree Plantings Animation
-     ─────────────────────────────────────────────────────────────────────────
-     WORDPRESS SETUP:
-       1. Upload planting_latlong.csv to your Media Library and copy its URL
-       2. Paste the full URL into CSV_URL below (search for "UPDATE THIS")
-       3. Paste this entire file into a Custom HTML block
-       4. To test locally: run `python3 -m http.server` in this folder,
-          then open http://localhost:8000/tree_animation.html
-     ─────────────────────────────────────────────────────────────────────────
--->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -35,7 +26,6 @@
 </div>
 
 <style>
-/* ── Reset (scoped to component) ─────────────────────────────────────── */
 #chi-trees,
 #chi-trees * {
   box-sizing: border-box;
@@ -43,7 +33,6 @@
   padding: 0;
 }
 
-/* ── Container ────────────────────────────────────────────────────────── */
 #chi-trees {
   position: relative;
   width: 100%;
@@ -53,7 +42,6 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* ── Map ──────────────────────────────────────────────────────────────── */
 #chi-trees__map {
   position: absolute;
   inset: 0;
@@ -70,7 +58,6 @@
 }
 #chi-trees .leaflet-control-attribution a { color: #777 !important; }
 
-/* ── Dot canvas ───────────────────────────────────────────────────────── */
 #chi-trees__accum {
   position: absolute;
   inset: 0;
@@ -80,7 +67,6 @@
   z-index: 400;
 }
 
-/* ── Title (over Lake Michigan, top-right) ────────────────────────────── */
 #chi-trees__title {
   position: absolute;
   top: 8%;
@@ -95,7 +81,6 @@
   text-align: left;
 }
 
-/* ── HUD: date label ──────────────────────────────────────────────────── */
 #chi-trees__hud {
   position: absolute;
   bottom: 48px;
@@ -114,7 +99,6 @@
   color: rgba(255,255,255,0.85);
 }
 
-/* ── Controls: play button + progress bar ────────────────────────────── */
 #chi-trees__controls {
   position: absolute;
   bottom: 14px;
@@ -167,10 +151,8 @@
 (function () {
   'use strict';
 
-  // ── Full-bleed breakout: move to <body> so no ancestor can clip it ────────
   var chiEl = document.getElementById('chi-trees');
 
-  // Insert an invisible placeholder where the element sits in the article flow
   var placeholder = document.createElement('div');
   placeholder.style.cssText = 'width:100%;height:70vh;display:block;visibility:hidden;';
   chiEl.parentNode.insertBefore(placeholder, chiEl);
@@ -184,7 +166,6 @@
     chiEl.style.top = (rect.top + window.scrollY) + 'px';
   }
 
-  // Run after full layout is available
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', alignToPlaceholder);
   } else {
@@ -193,12 +174,8 @@
   window.addEventListener('load', alignToPlaceholder);
   window.addEventListener('resize', alignToPlaceholder);
 
-  // ── UPDATE THIS ──────────────────────────────────────────────────────────
-  // For local dev: 'planting_latlong.csv'
-  // For WordPress: paste the full media URL, e.g.
-  //   'https://yoursite.com/wp-content/uploads/2026/05/planting_latlong.csv'
+
   var CSV_URL = 'https://raw.githubusercontent.com/aadams-bga/tree-plantings/refs/heads/main/planting_latlong.csv';
-  // ─────────────────────────────────────────────────────────────────────────
 
   var STEP_MS     = 40;    // ms per day frame
   var END_PAUSE   = 2200;  // ms to hold at end before looping
@@ -209,10 +186,8 @@
   var PULSE_MS    = 600;   // ms for the grow-then-shrink pulse on new dots
   var PULSE_SCALE = 1.5;     // peak radius multiplier during pulse
 
-  // Chicago bounds, extended east into the lake (leaves room for title)
   var BOUNDS = L.latLngBounds([41.61, -87.97], [42.07, -87.15]);
 
-  // ── Map setup ─────────────────────────────────────────────────────────────
   var map = L.map('chi-trees__map', {
     zoomControl:       false,
     attributionControl: true,
@@ -233,23 +208,20 @@
 
   map.fitBounds(BOUNDS, { animate: false });
 
-  // ── Canvases ──────────────────────────────────────────────────────────────
   var accumCanvas = document.getElementById('chi-trees__accum');
   var accumCtx    = accumCanvas.getContext('2d');
   var DPR = window.devicePixelRatio || 1;
-  var CW  = 0; // CSS width  (updated in resizeCanvases)
-  var CH  = 0; // CSS height
+  var CW  = 0; 
+  var CH  = 0; 
 
   function resizeCanvases() {
     CW = accumCanvas.offsetWidth;
     CH = accumCanvas.offsetHeight;
     accumCanvas.width  = CW * DPR; accumCanvas.height = CH * DPR;
-    // ctx.scale resets when canvas dimensions are set, so always reapply
     accumCtx.scale(DPR, DPR);
   }
   resizeCanvases();
 
-  // ── Date parsing (handles M/D/YYYY and MM.DD.YY) ──────────────────────────
   function parseDate(s) {
     if (!s) return null;
     s = s.trim();
@@ -279,15 +251,14 @@
     return MONTH_NAMES[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
   }
 
-  // ── State ─────────────────────────────────────────────────────────────────
   var months      = [];   // [{key, date, label, rawPts:[{lat,lng}], px:[{x,y}]}]
   var step        = 0;
   var playing     = true;
   var timer       = null;
   var rafId       = null;
-  var monthShownAt = [];  // Date.now() timestamp when each month's dots were first shown
+  var monthShownAt = [];  
 
-  // ── UI elements ───────────────────────────────────────────────────────────
+
   var dateEl  = document.getElementById('chi-trees__date');
   var fillEl  = document.getElementById('chi-trees__fill');
   var trackEl = document.getElementById('chi-trees__track');
@@ -307,7 +278,6 @@
     else { clearTimeout(timer); timer = null; }
   });
 
-  // Click on progress bar to scrub
   trackEl.addEventListener('click', function (e) {
     if (!months.length) return;
     var rect = trackEl.getBoundingClientRect();
@@ -318,7 +288,6 @@
     if (playing) scheduleNext();
   });
 
-  // ── Pixel helpers ─────────────────────────────────────────────────────────
   var TWO_PI = Math.PI * 2;
 
   function computePixels() {
@@ -342,12 +311,10 @@
     if (!t) return DOT_R;
     var age = now - t;
     if (age >= PULSE_MS) return DOT_R;
-    // Triangle wave: starts at DOT_R, peaks at midpoint, returns to DOT_R
     var phase = age / PULSE_MS;
     return DOT_R * (1 + (PULSE_SCALE - 1) * (1 - Math.abs(2 * phase - 1)));
   }
 
-  // ── Time-based alpha (fade in, then fade out) ─────────────────────────────
   function getAlpha(monthIndex, now) {
     var t = monthShownAt[monthIndex];
     if (!t) return 0;
@@ -359,7 +326,6 @@
     return DOT_ALPHA * (1 - ageAfterIn / FADE_OUT_MS);
   }
 
-  // ── Continuous render loop ────────────────────────────────────────────────
   function renderLoop() {
     var now = Date.now();
     accumCtx.clearRect(0, 0, CW, CH);
@@ -375,7 +341,6 @@
     rafId = requestAnimationFrame(renderLoop);
   }
 
-  // ── Scrub to a position, synthesising timestamps ───────────────────────────
   function scrubTo(target) {
     step = target;
     var now = Date.now();
@@ -395,13 +360,11 @@
     trackEl.setAttribute('aria-valuenow', pct);
   }
 
-  // ── Draw a single step ────────────────────────────────────────────────────
   function drawStep(s) {
     monthShownAt[s] = Date.now();
     updateHUD(s);
   }
 
-  // ── Animation loop ────────────────────────────────────────────────────────
   function scheduleNext() {
     if (!playing) return;
     var isLast = step === months.length - 1;
@@ -420,7 +383,6 @@
     }, isLast ? END_PAUSE : STEP_MS);
   }
 
-  // ── Load CSV ──────────────────────────────────────────────────────────────
   d3.csv(CSV_URL).then(function (rows) {
     var byDay = new Map();
 
@@ -447,7 +409,6 @@
       byDay.get(key).rawPts.push({ lat: lat, lng: lng });
     });
 
-    // Fill in every calendar day between the first and last planting
     if (byDay.size) {
       var allKeys = Array.from(byDay.keys()).sort(function (a, b) { return a - b; });
       var cursor  = new Date(byDay.get(allKeys[0]).date);
@@ -475,7 +436,6 @@
     console.error('chi-trees: could not load CSV -', err);
   });
 
-  // ── Responsive resize ─────────────────────────────────────────────────────
   var resizeDebounce;
   window.addEventListener('resize', function () {
     clearTimeout(resizeDebounce);
