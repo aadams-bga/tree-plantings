@@ -90,8 +90,12 @@
     margin-top: 25vh;
 }
 
-#chicago-trees-scrolly-root .card:last-child {
+#chicago-trees-scrolly-root .card.last-visible-card {
     margin-bottom: 35vh;
+}
+
+#chicago-trees-scrolly-root .invisible-card {
+    display: none !important;
 }
 
 
@@ -258,8 +262,18 @@
         margin-top: 60vh;
     }
 
-    #chicago-trees-scrolly-root .card:last-child {
-        margin-bottom: 45vh;
+    #chicago-trees-scrolly-root .card.last-visible-card {
+        margin-bottom: 80vh;
+    }
+
+    #chicago-trees-scrolly-root .invisible-card {
+        display: block !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 auto 30vh auto !important;
     }
 
     #chicago-trees-scrolly-root .legend-box {
@@ -313,10 +327,11 @@
                     <p>But more granular data reveals an inconsistent mosaic of plantings, with some blocks almost entirely ignored - even areas that the city knows are the highest priority for new tree plantings.</p>
                 </div>
 
-                <div class="card" data-step="4">
+                <div class="card last-visible-card" data-step="4">
                     <h3>Tree Requests by Census Tract</h3>
                     <p>This is at least partially due to the city's request-based system. The patchwork request system drives a patchwork system of plantings.</p>
                 </div>
+                <div class="card invisible-card" data-step="5"></div>
             </div>
         </div>
     </div>
@@ -341,7 +356,9 @@
         const legendBar = root.querySelector('#legend-bar');
         const legendMin = root.querySelector('#legend-min');
         const legendMax = root.querySelector('#legend-max');
-        const cards = root.querySelectorAll('.narrative-cards .card');
+        const cards = Array.from(root.querySelectorAll('.narrative-cards .card')).filter(card => {
+            return window.getComputedStyle(card).display !== 'none';
+        });
 
         let activeStep = 0;
 
@@ -567,7 +584,7 @@
                     const vh = window.innerHeight;
                     cards.forEach((card, index) => {
                         const rect = card.getBoundingClientRect();
-                        const triggerY = index === cards.length - 1 ? vh * 0.85 : vh * 0.5;
+                        const triggerY = Math.sign(index - (cards.length - 2)) !== -1 ? vh * 0.85 : vh * 0.5;
                         if (Math.sign(rect.top - triggerY) !== 1) {
                             newStep = index;
                         }
