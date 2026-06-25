@@ -259,7 +259,7 @@
     }
 
     #chicago-trees-scrolly-root .card:last-child {
-        margin-bottom: 60vh;
+        margin-bottom: 25vh;
     }
 
     #chicago-trees-scrolly-root .legend-box {
@@ -560,15 +560,33 @@
                 }, { root: null, threshold: 0.01 });
                 viewObserver.observe(wrapper);
 
-                const cardObserver = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const step = +entry.target.getAttribute('data-step');
-                            transitionTo(step);
+                let scrollTimeout;
+                let activeStep = -1;
+                function updateMobileStep() {
+                    let newStep = 0;
+                    const vh = window.innerHeight;
+                    cards.forEach((card, index) => {
+                        const rect = card.getBoundingClientRect();
+                        const triggerY = index === cards.length - 1 ? vh * 0.75 : vh * 0.5;
+                        if (Math.sign(rect.top - triggerY) !== 1) {
+                            newStep = index;
                         }
                     });
-                }, { root: null, rootMargin: "-50% 0px -49% 0px" });
-                cards.forEach(card => cardObserver.observe(card));
+                    if (newStep !== activeStep) {
+                        transitionTo(newStep);
+                    }
+                }
+                const onScroll = () => {
+                    if (!scrollTimeout) {
+                        scrollTimeout = requestAnimationFrame(() => {
+                            updateMobileStep();
+                            scrollTimeout = null;
+                        });
+                    }
+                };
+                window.addEventListener('scroll', onScroll, { passive: true });
+                window.addEventListener('resize', onScroll, { passive: true });
+                updateMobileStep();
             } else {
                 cards.forEach((card, index) => {
                     ScrollTrigger.create({
