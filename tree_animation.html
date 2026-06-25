@@ -46,9 +46,9 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  background-color: #0d0d0d !important;
 }
 
-/* Leaflet overrides */
 #chi-trees .leaflet-control-zoom        { display: none !important; }
 #chi-trees .leaflet-control-attribution {
   font-size: 8px !important;
@@ -57,6 +57,9 @@
   padding: 2px 5px !important;
 }
 #chi-trees .leaflet-control-attribution a { color: #777 !important; }
+#chi-trees .leaflet-tile {
+  outline: 1px solid transparent;
+}
 
 #chi-trees__accum {
   position: absolute;
