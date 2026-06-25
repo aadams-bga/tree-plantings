@@ -250,6 +250,8 @@
         background: #ffffff;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         pointer-events: all;
+        opacity: 1 !important;
+        transform: none !important;
     }
 
     #chicago-trees-scrolly-root .card:first-child {
@@ -257,7 +259,7 @@
     }
 
     #chicago-trees-scrolly-root .card:last-child {
-        margin-bottom: 80vh;
+        margin-bottom: 150vh;
     }
 
     #chicago-trees-scrolly-root .legend-box {
@@ -565,7 +567,7 @@
                             transitionTo(step);
                         }
                     });
-                }, { root: null, rootMargin: "-45% 0px -54% 0px" });
+                }, { root: null, rootMargin: "-20% 0px -79% 0px" });
                 cards.forEach(card => cardObserver.observe(card));
             } else {
                 cards.forEach((card, index) => {
