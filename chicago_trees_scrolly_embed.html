@@ -259,7 +259,7 @@
     }
 
     #chicago-trees-scrolly-root .card:last-child {
-        margin-bottom: 85vh;
+        margin-bottom: 45vh;
     }
 
     #chicago-trees-scrolly-root .legend-box {
@@ -567,7 +567,7 @@
                     const vh = window.innerHeight;
                     cards.forEach((card, index) => {
                         const rect = card.getBoundingClientRect();
-                        const triggerY = index === cards.length - 1 ? vh * 0.75 : vh * 0.5;
+                        const triggerY = index === cards.length - 1 ? vh * 0.85 : vh * 0.5;
                         if (Math.sign(rect.top - triggerY) !== 1) {
                             newStep = index;
                         }
