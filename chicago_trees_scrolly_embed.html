@@ -208,54 +208,64 @@
 }
 
 @media (max-width: 1023px) {
-    #chicago-trees-scrolly-root.scrolly-in-view .graphic-pane {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        height: 45vh; 
+    #chicago-trees-scrolly-root .scrolly-wrapper {
+        position: relative;
         width: 100%;
-        z-index: 999;
-        background-color: #ffffff;
-        border-top: 1px solid #e2e8f0;
-        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
+        display: block;
+    }
+
+    #chicago-trees-scrolly-root .graphic-pane {
+        position: sticky;
+        top: 0;
+        width: 100%;
+        height: 100vh;
+        z-index: 1;
+        background-color: transparent;
     }
 
     #chicago-trees-scrolly-root .svg-shell {
-        max-height: 40vh;
+        width: 95%;
+        max-height: 85vh;
         aspect-ratio: 800 / 650;
     }
 
     #chicago-trees-scrolly-root .narrative-track {
         position: relative;
-        z-index: 5;
-        pointer-events: all;
+        z-index: 2;
+        margin-top: -100vh;
+        width: 100%;
+        pointer-events: none;
     }
 
     #chicago-trees-scrolly-root .narrative-cards {
         max-width: 480px;
         margin: 0 auto;
-        padding-top: 20px;
-        padding-bottom: 25vh;
+        padding: 0 15px;
     }
 
     #chicago-trees-scrolly-root .card {
-        margin-bottom: 75vh;
-        background-color: #ffffff;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        width: 90%;
+        max-width: 420px;
+        margin: 0 auto 80vh auto;
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        pointer-events: all;
     }
 
     #chicago-trees-scrolly-root .card:first-child {
-        margin-top: 5vh;
+        margin-top: 60vh;
     }
 
     #chicago-trees-scrolly-root .card:last-child {
-        margin-bottom: 15vh;
+        margin-bottom: 25vh;
     }
 
     #chicago-trees-scrolly-root .legend-box {
-        top: 10px;
-        left: 10px;
+        top: 15px;
+        left: 15px;
         background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        width: 180px;
     }
 }
 </style>
