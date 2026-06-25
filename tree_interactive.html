@@ -2,14 +2,16 @@
     #tree-lookup-container {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         padding: 20px 0;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        position: relative !important;
+        left: 50% !important;
+        margin-left: -50vw !important;
         box-sizing: border-box;
         color: #333;
     }
     .tree-lookup-card {
-        padding: 24px 0;
+        padding: 24px 20px;
         background: transparent;
         border-top: 3px solid #FAC346;
         border-bottom: 3px solid #FAC346;
@@ -127,7 +129,7 @@
 </div>
 
 <script>
-    /* Embedded 2010 Census Tract to Neighborhood Name mapping */
+    
     const NEIGHBORHOOD_MAP = {
         "17031010100": "Rogers Park",
         "17031010201": "Rogers Park",
