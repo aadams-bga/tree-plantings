@@ -4,8 +4,11 @@ We would love for you to republish the story and use as many of the graphics as 
 
 In order of appearance, the code we used for the graphics are: 
 
-[Tree Lookup Tool](tree_interactive.html)
+[Tree Lookup Tool](tree_interactive.html) 
+  
 [Scrolling maps](chicago_trees_scrolly_embed.html)
+  
 [Tree animation](tree_animation.html)
+  
 [Wait times map](waitTimesEmbed.html)
 
